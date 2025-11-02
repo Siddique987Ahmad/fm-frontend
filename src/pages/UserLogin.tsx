@@ -8,7 +8,7 @@ const UserLogin: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const navigate = useNavigate();
 
-  const API_BASE_URL = import.meta.env.VITE_API_URL ?? '/api';
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://fm-backend-six.vercel.app/api';
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
@@ -24,15 +24,31 @@ const UserLogin: React.FC = () => {
         body: JSON.stringify({ email, password }),
       });
 
+      // Check if response is OK before parsing JSON
+      if (!response.ok) {
+        // Try to get error message from response
+        let errorMessage = 'Login failed. Please check your credentials.';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (parseError) {
+          // If response is not JSON, use status text
+          errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        }
+        setError(errorMessage);
+        setLoading(false);
+        return;
+      }
+
       const data = await response.json();
 
-      if (response.ok && data.success) {
+      if (data.success) {
         // Store token and user info
         localStorage.setItem('userToken', data.token);
         localStorage.setItem('userData', JSON.stringify(data.user));
         
         // Check if user is admin or regular user
-        if (data.user.role.name === 'super-admin' || data.user.role.name === 'admin') {
+        if (data.user.role?.name === 'super-admin' || data.user.role?.name === 'admin') {
           navigate('/admin/dashboard');
         } else {
           navigate('/user/main-dashboard');
@@ -40,9 +56,13 @@ const UserLogin: React.FC = () => {
       } else {
         setError(data.message || 'Login failed. Please check your credentials.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Login error:', err);
-      setError('Network error or server is unreachable.');
+      if (err instanceof SyntaxError) {
+        setError('Server returned invalid response. Please check if the API is running.');
+      } else {
+        setError('Network error or server is unreachable. Please check your connection.');
+      }
     } finally {
       setLoading(false);
     }

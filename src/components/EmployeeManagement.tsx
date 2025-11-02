@@ -120,19 +120,12 @@ const EmployeeManagement: React.FC = () => {
         ...(filterStatus && { status: filterStatus })
       });
 
-  const response = await fetch(`${import.meta.env.VITE_API_URL ?? '/api'}/admin/employees?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const result = await authenticatedFetch<{ success: boolean; data?: any; pagination?: { totalPages: number } }>(`/admin/employees?${params}`);
       
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setEmployees(result.data);
-          setTotalPages(result.pagination.totalPages);
-        }
+      if (result.success) {
+        if (result.data) setEmployees(result.data);
+        if (result.pagination) setTotalPages(result.pagination.totalPages);
       }
     } catch (err) {
       console.error('Error fetching employees:', err);
@@ -145,19 +138,10 @@ const EmployeeManagement: React.FC = () => {
   // Fetch stats
   const fetchStats = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
-  const response = await fetch(`${import.meta.env.VITE_API_URL ?? '/api'}/admin/employees/stats`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setStats(result.data);
-        }
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const result = await authenticatedFetch<{ success: boolean; data?: any }>('/admin/employees/stats');
+      if (result.success && result.data) {
+        setStats(result.data);
       }
     } catch (err) {
       console.error('Error fetching employee stats:', err);

@@ -162,8 +162,8 @@ const TransactionsPage: React.FC = () => {
         )
       });
 
-      const response = await fetch(`${API_BASE_URL}/products/${selectedProduct.apiEndpoint}?${queryParams}`);
-      const result = await response.json();
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const result = await authenticatedFetch<{ success: boolean; data?: any; pagination?: any; total?: number }>(`/products/${selectedProduct.apiEndpoint}?${queryParams}`);
 
       if (result.success) {
         setTransactions(result.data);
@@ -340,15 +340,11 @@ const TransactionsPage: React.FC = () => {
         notes: editFormData.notes.trim()
       };
 
-      const response = await fetch(`${API_BASE_URL}/products/${selectedProduct.apiEndpoint}/${selectedTransaction._id}`, {
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const result = await authenticatedFetch<{ success: boolean; data?: any }>(`/products/${selectedProduct.apiEndpoint}/${selectedTransaction._id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(payload)
       });
-
-      const result = await response.json();
 
       if (result.success) {
         setSuccess('Transaction updated successfully!');

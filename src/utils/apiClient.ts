@@ -53,3 +53,29 @@ export const fetchJson = async <T = any>(
   return await response.json();
 };
 
+/**
+ * Authenticated API call helper
+ * Automatically adds auth token and validates response
+ */
+export const authenticatedFetch = async <T = any>(
+  endpoint: string,
+  options?: RequestInit
+): Promise<T> => {
+  const apiUrl = getApiUrl();
+  const token = localStorage.getItem('adminToken') || localStorage.getItem('userToken');
+  
+  const headers: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...options?.headers,
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  
+  return fetchJson<T>(`${apiUrl}${endpoint}`, {
+    ...options,
+    headers,
+  });
+};
+

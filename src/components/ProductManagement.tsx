@@ -34,26 +34,16 @@ const ProductManagement: React.FC = () => {
   const fetchProducts = async () => {
     setLoading(true);
     setError('');
-    const token = localStorage.getItem('adminToken');
-    if (!token) {
-      setError('Authentication token not found. Please log in.');
-      setLoading(false);
-      return;
-    }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/products`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        setProducts(data.data);
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const result = await authenticatedFetch<{ success: boolean; data?: ProductCatalogItem[]; message?: string }>('/admin/products');
+      
+      if (result.success && result.data) {
+        setProducts(result.data);
       } else {
-        setError(data.message || 'Failed to fetch products.');
+        setError(result.message || 'Failed to fetch products.');
       }
-
     } catch (err) {
       console.error('Error fetching products:', err);
       setError('Network error or failed to connect to server.');
@@ -85,18 +75,13 @@ const ProductManagement: React.FC = () => {
 
     try {
       console.log('Creating product with data:', newProduct);
-      const response = await fetch(`${API_BASE_URL}/products`, {
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const data = await authenticatedFetch<{ success: boolean; message?: string }>('/admin/products', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify(newProduct),
       });
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (data.success) {
         alert('Product added successfully!');
         setShowAddProductForm(false);
         setNewProduct({
@@ -153,18 +138,13 @@ const ProductManagement: React.FC = () => {
         allowedTransactions: editingProduct.allowedTransactions,
       };
       console.log('Updating product with data:', updateData);
-      const response = await fetch(`${API_BASE_URL}/products/${editingProduct._id}`, {
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const data = await authenticatedFetch<{ success: boolean; message?: string }>(`/admin/products/${editingProduct._id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify(updateData),
       });
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (data.success) {
         alert('Product updated successfully!');
         setEditingProduct(null);
         clearProductTypesCache(); // Clear cache so updated product appears
@@ -188,14 +168,12 @@ const ProductManagement: React.FC = () => {
     const token = localStorage.getItem('adminToken');
 
     try {
-      const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const data = await authenticatedFetch<{ success: boolean; message?: string }>(`/admin/products/${productId}`, {
+        method: 'DELETE'
       });
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (data.success) {
         alert('Product deleted successfully!');
         clearProductTypesCache(); // Clear cache so deleted product is removed
         fetchProducts(); // Refresh list

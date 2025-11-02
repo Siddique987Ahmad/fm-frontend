@@ -178,36 +178,26 @@ const AdminDashboard: React.FC = () => {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('adminToken');
+      const { authenticatedFetch } = await import('../utils/apiClient');
 
       // Load user stats
-  const statsResponse = await fetch(`${import.meta.env.VITE_API_URL ?? '/api'}/admin/users/stats`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-      });
-
-      if (statsResponse.ok) {
-        const statsResult = await statsResponse.json();
-        if (statsResult.success) {
+      try {
+        const statsResult = await authenticatedFetch<{ success: boolean; data?: any }>('/admin/users/stats');
+        if (statsResult.success && statsResult.data) {
           setUserStats(statsResult.data);
         }
+      } catch (err) {
+        console.error('Error loading user stats:', err);
       }
 
       // Load users list
-  const usersResponse = await fetch(`${import.meta.env.VITE_API_URL ?? '/api'}/admin/users?limit=10`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-      });
-
-      if (usersResponse.ok) {
-        const usersResult = await usersResponse.json();
+      try {
+        const usersResult = await authenticatedFetch<{ success: boolean; data?: any }>('/admin/users?limit=10');
         if (usersResult.success) {
           // Users data loaded successfully
         }
+      } catch (err) {
+        console.error('Error loading users:', err);
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -226,22 +216,12 @@ const AdminDashboard: React.FC = () => {
   // Fetch product types
   const fetchProductTypes = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
-  const response = await fetch(`${import.meta.env.VITE_API_URL ?? '/api'}/products/types`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setProductTypes(result.data);
-        }
-      }
+      const { fetchProductTypes: fetchTypes } = await import('../utils/productTypes');
+      const types = await fetchTypes();
+      setProductTypes(types);
     } catch (error) {
       console.error('Error fetching product types:', error);
+      // Fallback types are returned by fetchProductTypes utility
     }
   };
 
@@ -313,14 +293,9 @@ const AdminDashboard: React.FC = () => {
   const handleCreatePurchase = async () => {
     try {
       setPurchaseLoading(true);
-      const token = localStorage.getItem('adminToken');
-      
-  const response = await fetch(`${import.meta.env.VITE_API_URL ?? '/api'}/products/${purchaseForm.productType.toLowerCase().replace(/\s+/g, '-')}`, {
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const result = await authenticatedFetch<{ success: boolean; data?: any }>(`/products/${purchaseForm.productType.toLowerCase().replace(/\s+/g, '-')}`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           transactionType: 'purchase',
           clientName: purchaseForm.vendor || 'Vendor',
@@ -332,22 +307,19 @@ const AdminDashboard: React.FC = () => {
         })
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setPurchaseForm({
-            productType: '',
-            quantity: '',
-            rate: '',
-            totalAmount: '',
-            amountPaid: '',
-            paymentStatus: 'pending',
-            vendor: '',
-            notes: ''
-          });
-          // Refresh purchases list
-          fetchPurchases();
-        }
+      if (result.success) {
+        setPurchaseForm({
+          productType: '',
+          quantity: '',
+          rate: '',
+          totalAmount: '',
+          amountPaid: '',
+          paymentStatus: 'pending',
+          vendor: '',
+          notes: ''
+        });
+        // Refresh purchases list
+        fetchPurchases();
       }
     } catch (error) {
       console.error('Error creating purchase:', error);
@@ -360,14 +332,9 @@ const AdminDashboard: React.FC = () => {
   const handleCreateSales = async () => {
     try {
       setSalesLoading(true);
-      const token = localStorage.getItem('adminToken');
-      
-  const response = await fetch(`${import.meta.env.VITE_API_URL ?? '/api'}/products/${salesForm.productType.toLowerCase().replace(/\s+/g, '-')}`, {
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const result = await authenticatedFetch<{ success: boolean; data?: any }>(`/products/${salesForm.productType.toLowerCase().replace(/\s+/g, '-')}`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           transactionType: 'sale',
           clientName: salesForm.customer || 'Customer',
@@ -379,22 +346,19 @@ const AdminDashboard: React.FC = () => {
         })
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setSalesForm({
-            productType: '',
-            quantity: '',
-            rate: '',
-            totalAmount: '',
-            amountReceived: '',
-            paymentStatus: 'pending',
-            customer: '',
-            notes: ''
-          });
-          // Refresh sales list
-          fetchSales();
-        }
+      if (result.success) {
+        setSalesForm({
+          productType: '',
+          quantity: '',
+          rate: '',
+          totalAmount: '',
+          amountReceived: '',
+          paymentStatus: 'pending',
+          customer: '',
+          notes: ''
+        });
+        // Refresh sales list
+        fetchSales();
       }
     } catch (error) {
       console.error('Error creating sale:', error);
@@ -407,73 +371,60 @@ const AdminDashboard: React.FC = () => {
   const fetchPurchases = async () => {
     try {
       setPurchaseLoading(true);
-      const token = localStorage.getItem('adminToken');
-      
       // Fetch all product types first
-  const productTypesResponse = await fetch(`${import.meta.env.VITE_API_URL ?? '/api'}/products/types`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (productTypesResponse.ok) {
-        const productTypesResult = await productTypesResponse.json();
-        if (productTypesResult.success) {
-          const allPurchases: Purchase[] = [];
-          
-          // Fetch transactions for each product type
-          for (const productType of productTypesResult.data) {
-            console.log('Fetching transactions for product type:', productType.name);
-            const transactionsResponse = await fetch(`${import.meta.env.VITE_API_URL ?? '/api'}/products/${productType.name.toLowerCase().replace(/\s+/g, '-')}`, {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
-            });
-
-            if (transactionsResponse.ok) {
-              const transactionsResult = await transactionsResponse.json();
-              console.log('Transactions result for', productType.name, ':', transactionsResult);
-              if (transactionsResult.success) {
-                const purchases = transactionsResult.data
-                  .filter((t: TransactionData) => t.transactionType === 'purchase')
-                  .map((t: TransactionData) => {
-                    const amountPaid = t.totalBalance - t.remainingAmount;
-                    let paymentStatus: 'pending' | 'paid' | 'advance' = 'pending';
-                    
-                    if (amountPaid === 0) {
-                      paymentStatus = 'pending';
-                    } else if (amountPaid < t.totalBalance) {
-                      paymentStatus = 'pending';
-                    } else if (amountPaid === t.totalBalance) {
-                      paymentStatus = 'advance';
-          } else {
-                      paymentStatus = 'paid';
-                    }
-                    
-                    return {
-                      _id: t._id,
-                      productType: productType.name,
-                      quantity: t.weight,
-                      rate: t.rate,
-                      totalAmount: t.totalBalance,
-                      amountPaid: amountPaid,
-                      paymentStatus: paymentStatus,
-                      vendor: t.clientName,
-                      notes: t.notes || '',
-                      createdAt: t.createdAt
-                    };
-                  });
-                allPurchases.push(...purchases);
-                console.log('Found purchases for', productType.name, ':', purchases.length);
-              }
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const { fetchProductTypes: fetchTypes } = await import('../utils/productTypes');
+      const productTypes = await fetchTypes();
+      
+      if (productTypes.length > 0) {
+        const allPurchases: Purchase[] = [];
+        
+        // Fetch transactions for each product type
+        for (const productType of productTypes) {
+          console.log('Fetching transactions for product type:', productType.name);
+          try {
+            const transactionsResult = await authenticatedFetch<{ success: boolean; data?: TransactionData[] }>(`/products/${productType.value}`);
+            console.log('Transactions result for', productType.name, ':', transactionsResult);
+            if (transactionsResult.success && transactionsResult.data) {
+              const purchases = transactionsResult.data
+                .filter((t: TransactionData) => t.transactionType === 'purchase')
+                .map((t: TransactionData) => {
+                  const amountPaid = t.totalBalance - t.remainingAmount;
+                  let paymentStatus: 'pending' | 'paid' | 'advance' = 'pending';
+                  
+                  if (amountPaid === 0) {
+                    paymentStatus = 'pending';
+                  } else if (amountPaid < t.totalBalance) {
+                    paymentStatus = 'pending';
+                  } else if (amountPaid === t.totalBalance) {
+                    paymentStatus = 'advance';
+                  } else {
+                    paymentStatus = 'paid';
+                  }
+                  
+                  return {
+                    _id: t._id,
+                    productType: productType.name,
+                    quantity: t.weight,
+                    rate: t.rate,
+                    totalAmount: t.totalBalance,
+                    amountPaid: amountPaid,
+                    paymentStatus: paymentStatus,
+                    vendor: t.clientName,
+                    notes: t.notes || '',
+                    createdAt: t.createdAt
+                  };
+                });
+              allPurchases.push(...purchases);
+              console.log('Found purchases for', productType.name, ':', purchases.length);
             }
+          } catch (err) {
+            console.error(`Error fetching transactions for ${productType.name}:`, err);
           }
-          
-          console.log('Total purchases found:', allPurchases.length);
-          setPurchases(allPurchases);
         }
+        
+        console.log('Total purchases found:', allPurchases.length);
+        setPurchases(allPurchases);
       }
     } catch (error) {
       console.error('Error fetching purchases:', error);
@@ -486,73 +437,60 @@ const AdminDashboard: React.FC = () => {
   const fetchSales = async () => {
     try {
       setSalesLoading(true);
-      const token = localStorage.getItem('adminToken');
-      
       // Fetch all product types first
-      const productTypesResponse = await fetch(`${process.env.REACT_APP_API_URL}/products/types`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (productTypesResponse.ok) {
-        const productTypesResult = await productTypesResponse.json();
-        if (productTypesResult.success) {
-          const allSales: Sale[] = [];
-          
-          // Fetch transactions for each product type
-          for (const productType of productTypesResult.data) {
-            console.log('Fetching sales for product type:', productType.name);
-            const transactionsResponse = await fetch(`${process.env.REACT_APP_API_URL}/products/${productType.name.toLowerCase().replace(/\s+/g, '-')}`, {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
-            });
-
-            if (transactionsResponse.ok) {
-              const transactionsResult = await transactionsResponse.json();
-              console.log('Sales result for', productType.name, ':', transactionsResult);
-              if (transactionsResult.success) {
-                const sales = transactionsResult.data
-                  .filter((t: TransactionData) => t.transactionType === 'sale')
-                  .map((t: TransactionData) => {
-                    const amountReceived = t.totalBalance - t.remainingAmount;
-                    let paymentStatus: 'pending' | 'paid' | 'advance' = 'pending';
-                    
-                    if (amountReceived === 0) {
-                      paymentStatus = 'pending';
-                    } else if (amountReceived < t.totalBalance) {
-                      paymentStatus = 'pending';
-                    } else if (amountReceived === t.totalBalance) {
-                      paymentStatus = 'advance';
-                    } else {
-                      paymentStatus = 'paid';
-                    }
-                    
-                    return {
-                      _id: t._id,
-                      productType: productType.name,
-                      quantity: t.weight,
-                      rate: t.rate,
-                      totalAmount: t.totalBalance,
-                      amountReceived: amountReceived,
-                      paymentStatus: paymentStatus,
-                      customer: t.clientName,
-                      notes: t.notes || '',
-                      createdAt: t.createdAt
-                    };
-                  });
-                allSales.push(...sales);
-                console.log('Found sales for', productType.name, ':', sales.length);
-              }
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const { fetchProductTypes: fetchTypes } = await import('../utils/productTypes');
+      const productTypes = await fetchTypes();
+      
+      if (productTypes.length > 0) {
+        const allSales: Sale[] = [];
+        
+        // Fetch transactions for each product type
+        for (const productType of productTypes) {
+          console.log('Fetching sales for product type:', productType.name);
+          try {
+            const transactionsResult = await authenticatedFetch<{ success: boolean; data?: TransactionData[] }>(`/products/${productType.value}`);
+            console.log('Sales result for', productType.name, ':', transactionsResult);
+            if (transactionsResult.success && transactionsResult.data) {
+              const sales = transactionsResult.data
+                .filter((t: TransactionData) => t.transactionType === 'sale')
+                .map((t: TransactionData) => {
+                  const amountReceived = t.totalBalance - t.remainingAmount;
+                  let paymentStatus: 'pending' | 'paid' | 'advance' = 'pending';
+                  
+                  if (amountReceived === 0) {
+                    paymentStatus = 'pending';
+                  } else if (amountReceived < t.totalBalance) {
+                    paymentStatus = 'pending';
+                  } else if (amountReceived === t.totalBalance) {
+                    paymentStatus = 'advance';
+                  } else {
+                    paymentStatus = 'paid';
+                  }
+                  
+                  return {
+                    _id: t._id,
+                    productType: productType.name,
+                    quantity: t.weight,
+                    rate: t.rate,
+                    totalAmount: t.totalBalance,
+                    amountReceived: amountReceived,
+                    paymentStatus: paymentStatus,
+                    customer: t.clientName,
+                    notes: t.notes || '',
+                    createdAt: t.createdAt
+                  };
+                });
+              allSales.push(...sales);
+              console.log('Found sales for', productType.name, ':', sales.length);
             }
+          } catch (err) {
+            console.error(`Error fetching transactions for ${productType.name}:`, err);
           }
-          
-          console.log('Total sales found:', allSales.length);
-          setSales(allSales);
         }
+        
+        console.log('Total sales found:', allSales.length);
+        setSales(allSales);
       }
     } catch (error) {
       console.error('Error fetching sales:', error);

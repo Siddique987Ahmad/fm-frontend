@@ -67,19 +67,10 @@ const UserManagement: React.FC = () => {
 
   const loadUsers = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
-  const response = await fetch(`${import.meta.env.VITE_API_URL ?? '/api'}/admin/users?limit=50`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setUsers(result.data);
-        }
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const result = await authenticatedFetch<{ success: boolean; data?: User[] }>('/admin/users?limit=50');
+      if (result.success && result.data) {
+        setUsers(result.data);
       }
     } catch (error) {
       console.error('Error loading users:', error);
@@ -90,19 +81,10 @@ const UserManagement: React.FC = () => {
 
   const loadRoles = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
-  const response = await fetch(`${import.meta.env.VITE_API_URL ?? '/api'}/admin/roles`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setRoles(result.data);
-        }
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const result = await authenticatedFetch<{ success: boolean; data?: Role[] }>('/admin/roles');
+      if (result.success && result.data) {
+        setRoles(result.data);
       }
     } catch (error) {
       console.error('Error loading roles:', error);
@@ -136,16 +118,14 @@ const UserManagement: React.FC = () => {
         ? { ...formData, salary: formData.salary ? parseFloat(formData.salary) : undefined }
         : { ...formData, salary: formData.salary ? parseFloat(formData.salary) : undefined };
 
-      const response = await fetch(url, {
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const endpoint = editingUser 
+        ? `/admin/users/${editingUser.id}`
+        : '/admin/auth/register';
+      const result = await authenticatedFetch<{ success: boolean; message?: string }>(endpoint, {
         method,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(payload),
       });
-
-      const result = await response.json();
 
       if (result.success) {
         setSuccess(editingUser ? 'User updated successfully!' : 'User created successfully!');
@@ -185,15 +165,10 @@ const UserManagement: React.FC = () => {
 
     try {
       const token = localStorage.getItem('adminToken');
-  const response = await fetch(`${import.meta.env.VITE_API_URL ?? '/api'}/admin/users/${userId}`, {
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const result = await authenticatedFetch<{ success: boolean; message?: string }>(`/admin/users/${userId}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
       });
-
-      const result = await response.json();
 
       if (result.success) {
         setSuccess('User deleted successfully!');

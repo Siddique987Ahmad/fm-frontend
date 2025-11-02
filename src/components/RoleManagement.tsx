@@ -46,25 +46,19 @@ const RoleManagement: React.FC = () => {
     }
 
     try {
-      const [rolesResponse, permissionsResponse] = await Promise.all([
-        fetch(`${API_BASE_URL}/roles`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch(`${API_BASE_URL}/permissions`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const [rolesData, permissionsData] = await Promise.all([
+        authenticatedFetch<{ success: boolean; data?: any[]; message?: string }>('/admin/roles'),
+        authenticatedFetch<{ success: boolean; data?: any[]; message?: string }>('/admin/permissions')
       ]);
 
-      const rolesData = await rolesResponse.json();
-      const permissionsData = await permissionsResponse.json();
-
-      if (rolesResponse.ok && rolesData.success) {
+      if (rolesData.success && rolesData.data) {
         setRoles(rolesData.data);
       } else {
         setError(rolesData.message || 'Failed to fetch roles.');
       }
 
-      if (permissionsResponse.ok && permissionsData.success) {
+      if (permissionsData.success && permissionsData.data) {
         setPermissions(permissionsData.data);
       } else {
         setError(permissionsData.message || 'Failed to fetch permissions.');
@@ -97,18 +91,13 @@ const RoleManagement: React.FC = () => {
     const token = localStorage.getItem('adminToken');
 
     try {
-      const response = await fetch(`${API_BASE_URL}/roles`, {
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const data = await authenticatedFetch<{ success: boolean; message?: string }>('/admin/roles', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify(newRole),
       });
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (data.success) {
         alert('Role added successfully!');
         setShowAddRoleForm(false);
         setNewRole({
@@ -160,12 +149,9 @@ const RoleManagement: React.FC = () => {
     const token = localStorage.getItem('adminToken');
 
     try {
-      const response = await fetch(`${API_BASE_URL}/roles/${editingRole._id}`, {
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const data = await authenticatedFetch<{ success: boolean; message?: string }>(`/admin/roles/${editingRole._id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify({
           name: editingRole.name,
           displayName: editingRole.displayName,
@@ -174,9 +160,7 @@ const RoleManagement: React.FC = () => {
         }),
       });
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (data.success) {
         alert('Role updated successfully!');
         setEditingRole(null);
         fetchRolesAndPermissions(); // Refresh list
@@ -199,14 +183,12 @@ const RoleManagement: React.FC = () => {
     const token = localStorage.getItem('adminToken');
 
     try {
-      const response = await fetch(`${API_BASE_URL}/roles/${roleId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const data = await authenticatedFetch<{ success: boolean; message?: string }>(`/admin/roles/${roleId}`, {
+        method: 'DELETE'
       });
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (data.success) {
         alert('Role deleted successfully!');
         fetchRolesAndPermissions(); // Refresh list
       } else {

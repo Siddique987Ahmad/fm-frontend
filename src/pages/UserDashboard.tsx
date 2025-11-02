@@ -133,25 +133,10 @@ const UserDashboard: React.FC = () => {
         : 'https://fm-backend-six.vercel.app/api';
       
       // Fetch stats for each product type
+      const { authenticatedFetch } = await import('../utils/apiClient');
       for (const productType of typesToFetch) {
         try {
-          const response = await fetch(`${apiUrl}/products/${productType}/stats`);
-          
-          // Check if response is OK
-          if (!response.ok) {
-            console.error(`HTTP ${response.status} for ${productType} stats`);
-            continue;
-          }
-          
-          // Check content type before parsing
-          const contentType = response.headers.get('content-type');
-          if (!contentType || !contentType.includes('application/json')) {
-            const text = await response.text();
-            console.error(`Non-JSON response for ${productType} stats:`, text.substring(0, 100));
-            continue;
-          }
-          
-          const result = await response.json();
+          const result = await authenticatedFetch<{ success: boolean; data?: any }>(`/products/${productType}/stats`);
 
           if (result.success && result.data) {
             totalTransactions += result.data.totalTransactions || 0;

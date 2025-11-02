@@ -262,25 +262,10 @@ const Dashboard: React.FC = () => {
         : 'https://fm-backend-six.vercel.app/api';
       
       // Fetch stats for each product type
+      const { authenticatedFetch } = await import('../utils/apiClient');
       for (const productType of typesToFetch) {
         try {
-          const response = await fetch(`${apiUrl}/products/${productType}/stats`);
-          
-          // Check if response is OK
-          if (!response.ok) {
-            console.error(`HTTP ${response.status} for ${productType} stats`);
-            continue;
-          }
-          
-          // Check content type before parsing
-          const contentType = response.headers.get('content-type');
-          if (!contentType || !contentType.includes('application/json')) {
-            const text = await response.text();
-            console.error(`Non-JSON response for ${productType} stats:`, text.substring(0, 100));
-            continue;
-          }
-          
-          const result = await response.json();
+          const result = await authenticatedFetch<{ success: boolean; data?: any }>(`/products/${productType}/stats`);
           
           if (result.success && result.data) {
             totalTransactions += result.data.totalTransactions || 0;
@@ -478,15 +463,11 @@ const Dashboard: React.FC = () => {
       };
 
       // Use the new generic API endpoint
-      const response = await fetch(`${API_BASE_URL}/products/${selectedProduct.productType}`, {
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const result = await authenticatedFetch<{ success: boolean; data?: any; message?: string; errors?: string[] }>(`/products/${selectedProduct.productType}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(payload)
       });
-
-      const result: ApiResponse = await response.json();
 
       if (result.success) {
         setSuccess(`${selectedProduct.name} ${selectedAction} transaction created successfully!`);

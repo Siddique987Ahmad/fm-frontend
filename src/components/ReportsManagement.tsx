@@ -64,33 +64,15 @@ const ReportsManagement: React.FC = () => {
   const fetchReportData = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('adminToken');
+      const { authenticatedFetch } = await import('../utils/apiClient');
       
       // Fetch all data in parallel
-      const [salesResponse, purchasesResponse, expensesResponse, usersResponse, employeesResponse] = await Promise.all([
-  fetch(`${import.meta.env.VITE_API_URL ?? '/api'}/admin/reports/sales?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-  fetch(`${import.meta.env.VITE_API_URL ?? '/api'}/admin/reports/purchases?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-  fetch(`${import.meta.env.VITE_API_URL ?? '/api'}/admin/reports/expenses?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-  fetch(`${import.meta.env.VITE_API_URL ?? '/api'}/admin/reports/users?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-  fetch(`${import.meta.env.VITE_API_URL ?? '/api'}/admin/reports/employees?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-      ]);
-
       const [salesData, purchasesData, expensesData, usersData, employeesData] = await Promise.all([
-        salesResponse.json(),
-        purchasesResponse.json(),
-        expensesResponse.json(),
-        usersResponse.json(),
-        employeesResponse.json()
+        authenticatedFetch<{ success: boolean; data?: any }>(`/admin/reports/sales?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`),
+        authenticatedFetch<{ success: boolean; data?: any }>(`/admin/reports/purchases?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`),
+        authenticatedFetch<{ success: boolean; data?: any }>(`/admin/reports/expenses?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`),
+        authenticatedFetch<{ success: boolean; data?: any }>(`/admin/reports/users?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`),
+        authenticatedFetch<{ success: boolean; data?: any }>(`/admin/reports/employees?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`)
       ]);
 
       setReportData({

@@ -111,16 +111,10 @@ const SettingsManagement: React.FC = () => {
 
   const loadSettings = async () => {
     try {
-      const token = localStorage.getItem('adminToken');
-  const response = await fetch(`${import.meta.env.VITE_API_URL ?? '/api'}/admin/settings`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setSettings(data.data);
-        }
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const result = await authenticatedFetch<{ success: boolean; data?: SystemSettings }>('/admin/settings');
+      if (result.success && result.data) {
+        setSettings(result.data);
       }
     } catch (error) {
       console.error('Error loading settings:', error);
@@ -132,17 +126,13 @@ const SettingsManagement: React.FC = () => {
       setLoading(true);
       setError('');
       
-      const token = localStorage.getItem('adminToken');
-  const response = await fetch(`${import.meta.env.VITE_API_URL ?? '/api'}/admin/settings`, {
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const result = await authenticatedFetch<{ success: boolean }>('/admin/settings', {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify(settings)
       });
 
-      if (response.ok) {
+      if (result.success) {
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
       } else {

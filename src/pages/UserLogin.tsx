@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getApiUrl } from '../utils/api';
 
 const UserLogin: React.FC = () => {
   const [email, setEmail] = useState<string>('');
@@ -8,7 +9,7 @@ const UserLogin: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const navigate = useNavigate();
 
-  const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://fm-backend-six.vercel.app/api';
+  const API_BASE_URL = getApiUrl();
 
   const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();

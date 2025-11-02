@@ -47,7 +47,13 @@ const AdminLogin: React.FC = () => {
     setError('');
 
     try {
-  const response = await fetch(`${import.meta.env.VITE_API_URL ?? '/api'}/admin/auth/login`, {
+      // Handle relative paths - convert to full backend URL
+      const envApiUrl = import.meta.env.VITE_API_URL;
+      const API_BASE_URL = envApiUrl && !envApiUrl.startsWith('/')
+        ? (envApiUrl.endsWith('/api') ? envApiUrl : `${envApiUrl}/api`)
+        : 'https://fm-backend-six.vercel.app/api';
+        
+      const response = await fetch(`${API_BASE_URL}/admin/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

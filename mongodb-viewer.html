@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MongoDB Data Viewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .database-info {
+            background: #e8f4f8;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .collection {
+            margin-bottom: 30px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .collection-header {
+            background: #4CAF50;
+            color: white;
+            padding: 15px;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .document {
+            background: #f9f9f9;
+            margin: 10px;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #4CAF50;
+        }
+        .field {
+            margin: 8px 0;
+        }
+        .field-label {
+            font-weight: bold;
+            color: #555;
+        }
+        .field-value {
+            color: #333;
+            margin-left: 10px;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: #f0f8ff;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+        .refresh-btn {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        .refresh-btn:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗄️ Local MongoDB Data Viewer</h1>
+        
+        <div class="database-info">
+            <h3>Database: factory-management</h3>
+            <p><strong>Connection:</strong> mongodb://localhost:27017/factory-management</p>
+            <p><strong>Status:</strong> <span style="color: green;">✅ Connected</span></p>
+        </div>
+
+        <button class="refresh-btn" onclick="loadData()">🔄 Refresh Data</button>
+
+        <div class="stats" id="stats">
+            <!-- Stats will be loaded here -->
+        </div>
+
+        <div id="collections">
+            <!-- Collections will be loaded here -->
+        </div>
+    </div>
+
+    <script>
+        async function loadData() {
+            try {
+                // Load products data
+                const productsResponse = await fetch('http://localhost:5001/api/products/white-oil');
+                const productsData = await productsResponse.json();
+                
+                // Load expenses data
+                const expensesResponse = await fetch('http://localhost:5001/api/expenses');
+                const expensesData = await expensesResponse.json();
+                
+                displayStats(productsData, expensesData);
+                displayCollections(productsData, expensesData);
+                
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('collections').innerHTML = 
+                    '<div class="document"><p style="color: red;">❌ Error loading data. Make sure your server is running on port 5001.</p></div>';
+            }
+        }
+
+        function displayStats(productsData, expensesData) {
+            const statsContainer = document.getElementById('stats');
+            
+            const productsCount = productsData.data ? productsData.data.length : 0;
+            const expensesCount = expensesData.data ? expensesData.data.length : 0;
+            
+            statsContainer.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number">${productsCount}</div>
+                    <div class="stat-label">Product Transactions</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${expensesCount}</div>
+                    <div class="stat-label">Expenses</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${productsCount + expensesCount}</div>
+                    <div class="stat-label">Total Records</div>
+                </div>
+            `;
+        }
+
+        function displayCollections(productsData, expensesData) {
+            const collectionsContainer = document.getElementById('collections');
+            
+            let html = '';
+            
+            // Display products
+            if (productsData.data && productsData.data.length > 0) {
+                html += '<div class="collection">';
+                html += '<div class="collection-header">📦 Products Collection (' + productsData.data.length + ' documents)</div>';
+                
+                productsData.data.forEach((product, index) => {
+                    html += '<div class="document">';
+                    html += '<div class="field"><span class="field-label">Document ID:</span><span class="field-value">' + product._id + '</span></div>';
+                    html += '<div class="field"><span class="field-label">Product Type:</span><span class="field-value">' + product.productType + '</span></div>';
+                    html += '<div class="field"><span class="field-label">Transaction Type:</span><span class="field-value">' + product.transactionType + '</span></div>';
+                    html += '<div class="field"><span class="field-label">Client Name:</span><span class="field-value">' + product.clientName + '</span></div>';
+                    html += '<div class="field"><span class="field-label">Weight:</span><span class="field-value">' + product.weight + ' ' + product.weightUnit + '</span></div>';
+                    html += '<div class="field"><span class="field-label">Rate:</span><span class="field-value">PKR' + product.rate + ' per ' + product.rateUnit + '</span></div>';
+                    html += '<div class="field"><span class="field-label">Total Amount:</span><span class="field-value">PKR' + product.totalBalance.toLocaleString() + '</span></div>';
+                    html += '<div class="field"><span class="field-label">Amount Received:</span><span class="field-value">PKR' + product.remainingAmount.toLocaleString() + '</span></div>';
+                    html += '<div class="field"><span class="field-label">Payment Status:</span><span class="field-value">' + product.paymentStatus + '</span></div>';
+                    html += '<div class="field"><span class="field-label">Created:</span><span class="field-value">' + new Date(product.createdAt).toLocaleString() + '</span></div>';
+                    if (product.notes) {
+                        html += '<div class="field"><span class="field-label">Notes:</span><span class="field-value">' + product.notes + '</span></div>';
+                    }
+                    html += '</div>';
+                });
+                
+                html += '</div>';
+            }
+            
+            // Display expenses
+            if (expensesData.data && expensesData.data.length > 0) {
+                html += '<div class="collection">';
+                html += '<div class="collection-header">💰 Expenses Collection (' + expensesData.data.length + ' documents)</div>';
+                
+                expensesData.data.forEach((expense, index) => {
+                    html += '<div class="document">';
+                    html += '<div class="field"><span class="field-label">Document ID:</span><span class="field-value">' + expense._id + '</span></div>';
+                    html += '<div class="field"><span class="field-label">Category:</span><span class="field-value">' + expense.expenseCategory + '</span></div>';
+                    html += '<div class="field"><span class="field-label">Title:</span><span class="field-value">' + expense.title + '</span></div>';
+                    html += '<div class="field"><span class="field-label">Amount:</span><span class="field-value">PKR' + expense.amount.toLocaleString() + '</span></div>';
+                    html += '<div class="field"><span class="field-label">Amount Paid:</span><span class="field-value">PKR' + expense.amountPaid.toLocaleString() + '</span></div>';
+                    html += '<div class="field"><span class="field-label">Payment Status:</span><span class="field-value">' + expense.paymentStatus + '</span></div>';
+                    html += '<div class="field"><span class="field-label">Created:</span><span class="field-value">' + new Date(expense.createdAt).toLocaleString() + '</span></div>';
+                    if (expense.description) {
+                        html += '<div class="field"><span class="field-label">Description:</span><span class="field-value">' + expense.description + '</span></div>';
+                    }
+                    html += '</div>';
+                });
+                
+                html += '</div>';
+            }
+            
+            if (html === '') {
+                html = '<div class="document"><p>No data found. Make sure your server is running and has data.</p></div>';
+            }
+            
+            collectionsContainer.innerHTML = html;
+        }
+
+        // Load data when page loads
+        window.onload = function() {
+            loadData();
+        };
+    </script>
+</body>
+</html>

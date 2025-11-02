@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MongoDB Query Interface</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .query-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .query-section h3 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            border-left: 4px solid #4CAF50;
+        }
+        .copy-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+        .copy-btn:hover {
+            background: #45a049;
+        }
+        .result {
+            background: #e8f5e8;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .command {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+        }
+        .terminal-link {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            display: inline-block;
+            margin: 10px 5px;
+        }
+        .terminal-link:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 MongoDB Query Interface</h1>
+        
+        <div class="query-section">
+            <h3>📊 Database Statistics</h3>
+            <div class="command">
+                # Connect to your database<br>
+                mongosh factory-management
+            </div>
+            
+            <h4>Show all databases:</h4>
+            <pre>show dbs</pre>
+            
+            <h4>Show collections in current database:</h4>
+            <pre>show collections</pre>
+            
+            <h4>Count documents in each collection:</h4>
+            <pre>db.products.countDocuments()
+db.expenses.countDocuments()</pre>
+        </div>
+
+        <div class="query-section">
+            <h3>📦 Products Collection Queries</h3>
+            
+            <h4>View all products:</h4>
+            <pre>db.products.find().pretty()</pre>
+            
+            <h4>View products by type:</h4>
+            <pre>db.products.find({productType: "white-oil"}).pretty()</pre>
+            
+            <h4>View sales only:</h4>
+            <pre>db.products.find({transactionType: "sale"}).pretty()</pre>
+            
+            <h4>View pending payments:</h4>
+            <pre>db.products.find({paymentStatus: "pending"}).pretty()</pre>
+            
+            <h4>Products with amount > 100000:</h4>
+            <pre>db.products.find({totalBalance: {$gt: 100000}}).pretty()</pre>
+            
+            <h4>Latest 5 products:</h4>
+            <pre>db.products.find().sort({createdAt: -1}).limit(5).pretty()</pre>
+        </div>
+
+        <div class="query-section">
+            <h3>💰 Expenses Collection Queries</h3>
+            
+            <h4>View all expenses:</h4>
+            <pre>db.expenses.find().pretty()</pre>
+            
+            <h4>View expenses by category:</h4>
+            <pre>db.expenses.find({expenseCategory: "home"}).pretty()</pre>
+            
+            <h4>View pending expenses:</h4>
+            <pre>db.expenses.find({paymentStatus: "pending"}).pretty()</pre>
+            
+            <h4>Expenses with amount > 10000:</h4>
+            <pre>db.expenses.find({amount: {$gt: 10000}}).pretty()</pre>
+            
+            <h4>Latest 5 expenses:</h4>
+            <pre>db.expenses.find().sort({createdAt: -1}).limit(5).pretty()</pre>
+        </div>
+
+        <div class="query-section">
+            <h3>🔧 Useful Commands</h3>
+            
+            <h4>Delete a specific document:</h4>
+            <pre>db.products.deleteOne({_id: ObjectId("YOUR_DOCUMENT_ID")})</pre>
+            
+            <h4>Update a document:</h4>
+            <pre>db.products.updateOne(
+  {_id: ObjectId("YOUR_DOCUMENT_ID")}, 
+  {$set: {status: "completed"}}
+)</pre>
+            
+            <h4>Create an index for better performance:</h4>
+            <pre>db.products.createIndex({productType: 1, createdAt: -1})</pre>
+            
+            <h4>Drop entire collection (be careful!):</h4>
+            <pre>db.products.drop()</pre>
+        </div>
+
+        <div class="query-section">
+            <h3>🌐 Web Access</h3>
+            <p>You can also access your data through these web interfaces:</p>
+            <a href="mongodb-viewer.html" class="terminal-link">📊 Data Viewer</a>
+            <a href="http://localhost:5173/transactions" class="terminal-link">🖥️ Your App</a>
+            <a href="http://localhost:5001/api/health" class="terminal-link">🔍 API Health</a>
+        </div>
+
+        <div class="query-section">
+            <h3>📋 Quick Access Commands</h3>
+            <div class="command">
+                # Open terminal and run these commands:<br><br>
+                <strong>1. Connect to MongoDB:</strong><br>
+                mongosh factory-management<br><br>
+                
+                <strong>2. View your data:</strong><br>
+                db.products.find().pretty()<br><br>
+                
+                <strong>3. View expenses:</strong><br>
+                db.expenses.find().pretty()<br><br>
+                
+                <strong>4. Count total records:</strong><br>
+                db.products.countDocuments() + db.expenses.countDocuments()
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Add copy functionality to code blocks
+        document.querySelectorAll('pre').forEach(pre => {
+            const button = document.createElement('button');
+            button.className = 'copy-btn';
+            button.textContent = 'Copy';
+            button.onclick = () => {
+                navigator.clipboard.writeText(pre.textContent);
+                button.textContent = 'Copied!';
+                setTimeout(() => button.textContent = 'Copy', 2000);
+            };
+            pre.parentNode.insertBefore(button, pre.nextSibling);
+        });
+    </script>
+</body>
+</html>

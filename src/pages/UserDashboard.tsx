@@ -71,13 +71,35 @@ const UserDashboard: React.FC = () => {
 
   const fetchUserData = async (token: string) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/admin/auth/me`, {
+      // Get API URL - handle relative paths
+      const apiUrl = API_BASE_URL && !API_BASE_URL.startsWith('/')
+        ? API_BASE_URL
+        : 'https://fm-backend-six.vercel.app/api';
+      
+      const response = await fetch(`${apiUrl}/admin/auth/me`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
       });
+      
+      if (!response.ok) {
+        setError(`HTTP ${response.status}: ${response.statusText}`);
+        navigate('/login');
+        return;
+      }
+      
+      // Check content type before parsing
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response from auth/me:', text.substring(0, 100));
+        setError('Invalid response format from server');
+        navigate('/login');
+        return;
+      }
+      
       const data = await response.json();
-      if (response.ok && data.success) {
+      if (data.success) {
         setUser(data.data);
       } else {
         setError(data.message || 'Failed to fetch user data.');
@@ -105,10 +127,30 @@ const UserDashboard: React.FC = () => {
       let totalSalesAmount = 0;
       let totalPurchasesAmount = 0;
 
+      // Get API URL - handle relative paths
+      const apiUrl = API_BASE_URL && !API_BASE_URL.startsWith('/')
+        ? API_BASE_URL
+        : 'https://fm-backend-six.vercel.app/api';
+      
       // Fetch stats for each product type
       for (const productType of typesToFetch) {
         try {
-          const response = await fetch(`${API_BASE_URL}/products/${productType}/stats`);
+          const response = await fetch(`${apiUrl}/products/${productType}/stats`);
+          
+          // Check if response is OK
+          if (!response.ok) {
+            console.error(`HTTP ${response.status} for ${productType} stats`);
+            continue;
+          }
+          
+          // Check content type before parsing
+          const contentType = response.headers.get('content-type');
+          if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            console.error(`Non-JSON response for ${productType} stats:`, text.substring(0, 100));
+            continue;
+          }
+          
           const result = await response.json();
 
           if (result.success && result.data) {
@@ -120,6 +162,7 @@ const UserDashboard: React.FC = () => {
           }
         } catch (error) {
           console.error(`Error fetching stats for ${productType}:`, error);
+          // Continue to next product type
         }
       }
 

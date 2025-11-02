@@ -1,4 +1,5 @@
 // Utility functions for product types
+import { getApiUrl, fetchJson } from './apiClient';
 
 export interface ProductType {
   id: string;
@@ -6,8 +7,6 @@ export interface ProductType {
   value: string;
   allowedTransactions?: ('sale' | 'purchase')[];
 }
-
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? '/api';
 
 // Cache for product types to avoid repeated API calls
 let productTypesCache: ProductType[] | null = null;
@@ -22,8 +21,8 @@ export const fetchProductTypes = async (): Promise<ProductType[]> => {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/products/types`);
-    const data = await response.json();
+    const apiUrl = getApiUrl();
+    const data = await fetchJson<{ success: boolean; data?: ProductType[]; message?: string }>(`${apiUrl}/products/types`);
 
     if (data.success && data.data) {
       productTypesCache = data.data;

@@ -216,15 +216,10 @@ const ExpenseManagement: React.FC = () => {
       }
 
       try {
-        const token = userToken || adminToken;
-  const response = await fetch(`${import.meta.env.VITE_API_URL ?? '/api'}/admin/auth/me`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          }
-        });
+        const { authenticatedFetch } = await import('../utils/apiClient');
+        const result = await authenticatedFetch<{ success: boolean; data?: any }>(`/admin/auth/me`);
 
-        if (!response.ok) {
+        if (!result?.success) {
           localStorage.removeItem('userToken');
           localStorage.removeItem('adminToken');
           localStorage.removeItem('userData');
@@ -232,11 +227,7 @@ const ExpenseManagement: React.FC = () => {
           navigate('/login');
           return;
         }
-
-        const result = await response.json();
-        if (result.success) {
-          localStorage.setItem('userData', JSON.stringify(result.data));
-        }
+        localStorage.setItem('userData', JSON.stringify(result.data));
       } catch (error) {
         console.error('Auth check failed:', error);
         localStorage.removeItem('userToken');
@@ -360,14 +351,8 @@ const ExpenseManagement: React.FC = () => {
 
   const fetchExpenseStats = async (): Promise<void> => {
     try {
-      const token = localStorage.getItem('userToken') || localStorage.getItem('adminToken');
-      const response = await fetch(`${API_BASE_URL}/expenses/stats`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        }
-      });
-      const result: ApiResponse<StatsResponse> = await response.json();
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const result = await authenticatedFetch<ApiResponse<StatsResponse>>(`/expenses/stats`);
       
       if (result.success && result.data) {
         const statsData: Record<string, ExpenseStats> = {};
@@ -376,26 +361,20 @@ const ExpenseManagement: React.FC = () => {
         });
         setStats(statsData);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching expense stats:', error);
     }
   };
 
   const fetchEmployees = async (): Promise<void> => {
     try {
-      const token = localStorage.getItem('userToken') || localStorage.getItem('adminToken');
-      const response = await fetch(`${API_BASE_URL}/admin/employees/for-expense`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        }
-      });
-      const result = await response.json();
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const result = await authenticatedFetch<{ success: boolean; data?: any }>(`/admin/employees/for-expense`);
       
       if (result.success && result.data) {
         setEmployees(result.data);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching employees:', error);
     }
   };
@@ -403,19 +382,13 @@ const ExpenseManagement: React.FC = () => {
   const fetchCategoryExpenses = async (category: string): Promise<void> => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('userToken') || localStorage.getItem('adminToken');
-      const response = await fetch(`${API_BASE_URL}/expenses/category/${category}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        }
-      });
-      const result: ApiResponse<ExpenseListResponse> = await response.json();
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const result = await authenticatedFetch<ApiResponse<ExpenseListResponse>>(`/expenses/category/${category}`);
       
       if (result.success && result.data) {
         setExpenses(result.data.expenses || []);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching category expenses:', error);
       setError('Failed to load expenses');
     } finally {

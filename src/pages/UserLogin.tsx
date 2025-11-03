@@ -52,7 +52,7 @@ const UserLogin: React.FC = () => {
         if (data.user.role?.name === 'super-admin' || data.user.role?.name === 'admin') {
           navigate('/admin/dashboard');
         } else {
-          navigate('/user/main-dashboard');
+          navigate('/user/dashboard'); // Use UserDashboard, not Dashboard
         }
       } else {
         setError(data.message || 'Login failed. Please check your credentials.');

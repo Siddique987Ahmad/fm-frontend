@@ -320,9 +320,19 @@ const AdminDashboard: React.FC = () => {
         });
         // Refresh purchases list
         fetchPurchases();
+        alert('Purchase created successfully!');
+      } else {
+        const errorMsg = (result as any).message || 'Failed to create purchase';
+        alert(`Error: ${errorMsg}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating purchase:', error);
+      const errorMessage = error?.message || error?.toString() || 'Network error. Please check if the server is running.';
+      if (errorMessage.includes('Permission') || errorMessage.includes('403')) {
+        alert(`Permission Denied: ${errorMessage}`);
+      } else {
+        alert(`Error creating purchase: ${errorMessage}`);
+      }
     } finally {
       setPurchaseLoading(false);
     }
@@ -359,9 +369,19 @@ const AdminDashboard: React.FC = () => {
         });
         // Refresh sales list
         fetchSales();
+        alert('Sale created successfully!');
+      } else {
+        const errorMsg = (result as any).message || 'Failed to create sale';
+        alert(`Error: ${errorMsg}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating sale:', error);
+      const errorMessage = error?.message || error?.toString() || 'Network error. Please check if the server is running.';
+      if (errorMessage.includes('Permission') || errorMessage.includes('403')) {
+        alert(`Permission Denied: ${errorMessage}`);
+      } else {
+        alert(`Error creating sale: ${errorMessage}`);
+      }
     } finally {
       setSalesLoading(false);
     }

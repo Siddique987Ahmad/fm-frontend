@@ -485,9 +485,16 @@ const Dashboard: React.FC = () => {
           setError(result.errors.join(', '));
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting form:', error);
-      setError('Network error. Please check if the server is running.');
+      // Extract error message - could be a permission error
+      const errorMessage = error?.message || error?.toString() || 'Network error. Please check if the server is running.';
+      setError(errorMessage);
+      
+      // If it's a permission error (403), show a more user-friendly message
+      if (errorMessage.includes('Permission') || errorMessage.includes('403')) {
+        setError(errorMessage.includes('Permission') ? errorMessage : 'You do not have permission to create products. Please contact your administrator.');
+      }
     } finally {
       setLoading(false);
     }

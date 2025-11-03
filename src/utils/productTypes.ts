@@ -21,8 +21,9 @@ export const fetchProductTypes = async (): Promise<ProductType[]> => {
   }
 
   try {
-    const apiUrl = getApiUrl();
-    const data = await fetchJson<{ success: boolean; data?: ProductType[]; message?: string }>(`${apiUrl}/products/types`);
+    // Use authenticatedFetch to ensure auth token is included
+    const { authenticatedFetch } = await import('./apiClient');
+    const data = await authenticatedFetch<{ success: boolean; data?: ProductType[]; message?: string }>(`/products/types`);
 
     if (data.success && data.data) {
       productTypesCache = data.data;
@@ -31,9 +32,15 @@ export const fetchProductTypes = async (): Promise<ProductType[]> => {
     } else {
       throw new Error(data.message || 'Failed to fetch product types');
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error fetching product types:', error);
-    // Return fallback product types if API fails
+    // Check if it's a permission error
+    const errorMessage = error?.message || error?.toString() || '';
+    if (errorMessage.includes('Permission') || errorMessage.includes('403') || errorMessage.includes('401')) {
+      // Don't return fallback if it's a permission error - throw it
+      throw new Error('You do not have permission to view product types. Please contact your administrator.');
+    }
+    // Return fallback product types only for other errors (network, server down, etc.)
     return [
       { id: 'white-oil', name: 'White Oil', value: 'white-oil' },
       { id: 'yellow-oil', name: 'Yellow Oil', value: 'yellow-oil' },

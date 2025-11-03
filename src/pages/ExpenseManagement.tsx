@@ -675,7 +675,7 @@ const ExpenseManagement: React.FC = () => {
   };
 
   const handleBackToDashboard = (): void => {
-    window.location.href = '/user/main-dashboard';
+    window.location.href = '/user/dashboard';
   };
 
   const handleBackToCategories = (): void => {

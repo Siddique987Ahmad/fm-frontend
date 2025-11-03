@@ -7,6 +7,7 @@ interface Role {
   description: string;
   permissions: Permission[];
   createdAt: string;
+  isSystemRole?: boolean;
 }
 
 interface Permission {
@@ -167,9 +168,11 @@ const RoleManagement: React.FC = () => {
       } else {
         setError(data.message || 'Failed to update role.');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error updating role:', err);
-      setError('Network error or failed to update role.');
+      // Extract error message from the error object
+      const errorMessage = err?.message || err?.toString() || 'Network error or failed to update role.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -319,8 +322,12 @@ const RoleManagement: React.FC = () => {
                   value={editingRole.name} 
                   onChange={handleEditRoleChange} 
                   required
-                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  disabled={editingRole.isSystemRole}
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed bg-gray-50"
                 />
+                {editingRole.isSystemRole && (
+                  <p className="mt-1 text-xs text-amber-600">System role names cannot be changed</p>
+                )}
               </div>
               <div>
                 <label htmlFor="editDisplayName" className="block text-sm font-medium text-gray-700">Display Name</label>
@@ -347,7 +354,14 @@ const RoleManagement: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Permissions</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Permissions
+                {editingRole.isSystemRole && (
+                  <span className="ml-2 text-xs text-amber-600 font-normal">
+                    (System role - be careful when modifying permissions)
+                  </span>
+                )}
+              </label>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-60 overflow-y-auto border border-gray-300 rounded-md p-3">
                 {permissions.map(permission => (
                   <label key={permission._id} className="flex items-center space-x-2">

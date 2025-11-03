@@ -65,11 +65,6 @@ interface User {
 }
 
 // Icons as simple SVG components
-const PackageIcon: React.FC = () => (
-  <svg className="w-10 h-10" fill="currentColor" viewBox="0 0 20 20">
-    <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 4a1 1 0 011-1h12a1 1 0 011 1v8a1 1 0 01-1 1H4a1 1 0 01-1-1V8z" clipRule="evenodd" />
-  </svg>
-);
 
 const TrendingUpIcon: React.FC = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -626,7 +621,7 @@ const Dashboard: React.FC = () => {
                     {box.isExpense ? 'Manage expenses' : 'Click to manage'}
                   </p>
                 </div>
-                <PackageIcon />
+                {/* Icon removed as requested */}
               </div>
             </div>
           ))}

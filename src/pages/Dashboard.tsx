@@ -535,7 +535,7 @@ const Dashboard: React.FC = () => {
               <img 
                 src={Logo2} 
                 alt="Al Hamad Oil Factory Logo" 
-                className="h-12 sm:h-14 md:h-16 w-auto object-contain"
+                className="h-40 w-64"
               />
             </div>
             <p className="text-gray-600 mt-2">

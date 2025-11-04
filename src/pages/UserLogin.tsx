@@ -74,11 +74,11 @@ const UserLogin: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
+          <div className="flex justify-center mb-6">
             <img 
               src={logo3} 
               alt="Al Hamad Oil Factory Logo" 
-              className="h-24 w-auto object-contain"
+              className="h-40 w-64 object-contain"
             />
           </div>
           <h2 className="text-3xl font-bold text-gray-800 mb-2">Welcome Back</h2>

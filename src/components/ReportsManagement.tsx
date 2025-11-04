@@ -101,6 +101,11 @@ const ReportsManagement: React.FC = () => {
       const apiUrl = getApiUrl();
       const token = localStorage.getItem('adminToken') || localStorage.getItem('userToken');
       
+      if (!token) {
+        alert('Authentication required. Please log in again.');
+        return;
+      }
+      
       let url = `${apiUrl}/admin/reports/pdf/${reportType}?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
       
       // Add product name for specific product reports
@@ -115,40 +120,79 @@ const ReportsManagement: React.FC = () => {
         },
       });
 
-      if (response.ok) {
-        const blob = await response.blob();
-        const downloadUrl = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = downloadUrl;
-        
-        const filename = productName 
-          ? `${reportType}-${productName}-report-${dateRange.startDate}-to-${dateRange.endDate}.pdf`
-          : `${reportType}-report-${dateRange.startDate}-to-${dateRange.endDate}.pdf`;
-        
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(downloadUrl);
-        document.body.removeChild(a);
-      } else {
-        // Try to parse error message from response
+      // Check content type first to determine if it's an error or PDF
+      const contentType = response.headers.get('content-type') || '';
+      
+      if (!response.ok) {
+        // Handle error response
         let errorMessage = `Failed to generate PDF (HTTP ${response.status})`;
         try {
-          const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
+          if (contentType.includes('application/json')) {
             const errorData = await response.json();
-            errorMessage = errorData.message || errorMessage;
+            errorMessage = errorData.message || errorData.error || errorMessage;
+          } else {
+            const text = await response.text();
+            if (text) {
+              try {
+                const errorData = JSON.parse(text);
+                errorMessage = errorData.message || errorData.error || errorMessage;
+              } catch {
+                errorMessage = text.substring(0, 200) || errorMessage;
+              }
+            }
           }
         } catch (e) {
-          // Ignore parse errors
+          console.error('Error parsing error response:', e);
         }
         console.error('PDF generation failed:', errorMessage);
-        alert(errorMessage);
+        alert(`Failed to generate PDF: ${errorMessage}`);
+        return;
       }
+
+      // Check if response is actually a PDF
+      if (!contentType.includes('application/pdf') && !contentType.includes('application/octet-stream')) {
+        // Might be a JSON error even with 200 status - clone response to read it
+        const clonedResponse = response.clone();
+        try {
+          const text = await clonedResponse.text();
+          const errorData = JSON.parse(text);
+          const errorMessage = errorData.message || errorData.error || 'Invalid response from server';
+          console.error('PDF generation failed:', errorMessage);
+          alert(`Failed to generate PDF: ${errorMessage}`);
+          return;
+        } catch (e) {
+          console.error('Unexpected response format:', contentType, e);
+          alert('Failed to generate PDF: Unexpected response format from server');
+          return;
+        }
+      }
+
+      // Success - download the PDF
+      const blob = await response.blob();
+      
+      // Verify it's actually a PDF blob
+      if (blob.size === 0) {
+        alert('Failed to generate PDF: Empty file received');
+        return;
+      }
+      
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      
+      const filename = productName 
+        ? `${reportType}-${productName}-report-${dateRange.startDate}-to-${dateRange.endDate}.pdf`
+        : `${reportType}-report-${dateRange.startDate}-to-${dateRange.endDate}.pdf`;
+      
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(downloadUrl);
+      document.body.removeChild(a);
     } catch (err: any) {
       console.error('Error generating PDF:', err);
       const errorMessage = err?.message || err?.toString() || 'Unknown error';
-      alert('Error generating PDF: ' + errorMessage);
+      alert(`Error generating PDF: ${errorMessage}`);
     }
   };
 

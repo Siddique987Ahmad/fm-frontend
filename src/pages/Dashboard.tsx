@@ -528,25 +528,26 @@ const Dashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="max-w-7xl mx-auto p-6">
-        {/* Logo on left side top */}
-        <div className="mb-6">
-          <img 
-            src={Logo2} 
-            alt="Al Hamad Oil Factory Logo" 
-            className="h-24 sm:h-28 md:h-32 w-auto object-contain"
-            style={{ 
-              backgroundColor: 'transparent',
-              backgroundImage: 'none'
-            }}
-          />
-        </div>
-        
-        {/* Header with user info */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <p className="text-gray-600 mt-2">
-              Welcome back, {user.firstName} {user.lastName} • {user.role.displayName}
-            </p>
+        {/* Header with logo and user info */}
+        <div className="flex justify-between items-start mb-8">
+          <div className="flex items-center gap-4">
+            {/* Logo on left side */}
+            <div>
+              <img 
+                src={Logo2} 
+                alt="Al Hamad Oil Factory Logo" 
+                className="h-12 sm:h-14 md:h-16 w-auto object-contain"
+                style={{ 
+                  backgroundColor: 'transparent',
+                  backgroundImage: 'none'
+                }}
+              />
+            </div>
+            <div>
+              <p className="text-gray-600">
+                Welcome back, {user.firstName} {user.lastName} • {user.role.displayName}
+              </p>
+            </div>
           </div>
           <div className="flex items-center space-x-4">
             <div className="text-right">

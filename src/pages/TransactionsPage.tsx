@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getApiUrl } from '../utils/api';
 
 // Types
 interface Transaction {
@@ -80,6 +81,12 @@ const EditIcon: React.FC = () => (
   </svg>
 );
 
+const DownloadIcon: React.FC = () => (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-4-4m4 4l4-4m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  </svg>
+);
+
 const CloseIcon: React.FC = () => (
   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -96,7 +103,7 @@ const LoadingSpinner: React.FC = () => (
   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
 );
 
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? '/api';
+const getApiBaseUrl = () => getApiUrl();
 
 const TransactionsPage: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -400,6 +407,48 @@ const TransactionsPage: React.FC = () => {
     setError('');
   };
 
+  const handleDownloadInvoice = async (transaction: Transaction): Promise<void> => {
+    if (!selectedProduct || !transaction) return;
+    
+    try {
+      setLoading(true);
+      setError('');
+      
+      const API_BASE_URL = getApiBaseUrl();
+      const token = localStorage.getItem('adminToken') || localStorage.getItem('userToken');
+      
+      const url = `${API_BASE_URL}/products/${selectedProduct.apiEndpoint}/${transaction._id}/invoice`;
+      
+      const response = await fetch(url, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : undefined
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to generate invoice: ${response.statusText}`);
+      }
+      
+      // Get the PDF blob
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `${selectedProduct.apiEndpoint}-invoice-${transaction._id.slice(-8)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(downloadUrl);
+      document.body.removeChild(a);
+      
+      setSuccess('Invoice downloaded successfully!');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error) {
+      console.error('Error downloading invoice:', error);
+      setError('Failed to download invoice. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-7xl mx-auto">
@@ -686,6 +735,7 @@ const TransactionsPage: React.FC = () => {
                                 <button
                                   onClick={() => handleViewDetails(transaction)}
                                   className="text-blue-600 hover:text-blue-900 flex items-center space-x-1"
+                                  title="View Details"
                                 >
                                   <EyeIcon />
                                   <span>View</span>
@@ -693,9 +743,19 @@ const TransactionsPage: React.FC = () => {
                                 <button
                                   onClick={() => handleEdit(transaction)}
                                   className="text-green-600 hover:text-green-900 flex items-center space-x-1"
+                                  title="Edit Transaction"
                                 >
                                   <EditIcon />
                                   <span>Edit</span>
+                                </button>
+                                <button
+                                  onClick={() => handleDownloadInvoice(transaction)}
+                                  className="text-red-600 hover:text-red-900 flex items-center space-x-1"
+                                  title="Download Invoice PDF"
+                                  disabled={loading}
+                                >
+                                  <DownloadIcon />
+                                  <span>PDF</span>
                                 </button>
                               </div>
                             </td>
@@ -799,15 +859,27 @@ const TransactionsPage: React.FC = () => {
                 </div>
               )}
 
-              <div className="pt-4 border-t">
+              <div className="pt-4 border-t flex space-x-3">
                 <button
                   onClick={() => {
                     setShowDetails(false);
                     handleEdit(selectedTransaction);
                   }}
-                  className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+                  className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
                 >
                   Edit Transaction
+                </button>
+                <button
+                  onClick={() => {
+                    if (selectedTransaction) {
+                      handleDownloadInvoice(selectedTransaction);
+                    }
+                  }}
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                  disabled={loading}
+                >
+                  <DownloadIcon />
+                  <span>Download Invoice</span>
                 </button>
               </div>
             </div>

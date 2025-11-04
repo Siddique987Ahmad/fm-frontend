@@ -142,17 +142,6 @@ const UserLogin: React.FC = () => {
           </button>
         </form>
         
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-600">
-            Demo Credentials:
-          </p>
-          <div className="mt-2 space-y-1 text-xs text-gray-500">
-            <p><strong>Admin:</strong> admin@factory.com / admin123</p>
-            <p><strong>Manager:</strong> manager@factory.com / manager123</p>
-            <p><strong>Employee:</strong> employee@factory.com / employee123</p>
-          </div>
-        </div>
-        
         <div className="mt-6 pt-6 border-t border-gray-200">
           <p className="text-center text-sm text-gray-600">
             Don't have an account? 

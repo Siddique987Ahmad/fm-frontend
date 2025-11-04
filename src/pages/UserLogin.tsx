@@ -78,7 +78,7 @@ const UserLogin: React.FC = () => {
             <img 
               src={logo3} 
               alt="Al Hamad Oil Factory Logo" 
-              className="h-24 w-48 sm:h-32 sm:w-56 md:h-40 md:w-64 object-contain"
+              className="h-40 w-64 sm:h-32 sm:w-56 md:h-40 md:w-64 object-contain"
             />
           </div>
           <h2 className="text-3xl font-bold text-gray-800 mb-2">Welcome Back</h2>

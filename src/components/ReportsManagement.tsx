@@ -127,22 +127,30 @@ const ReportsManagement: React.FC = () => {
         // Handle error response
         let errorMessage = `Failed to generate PDF (HTTP ${response.status})`;
         try {
-          if (contentType.includes('application/json')) {
-            const errorData = await response.json();
-            errorMessage = errorData.message || errorData.error || errorMessage;
-          } else {
-            const text = await response.text();
-            if (text) {
+          const text = await response.text();
+          if (text && text.trim()) {
+            if (contentType.includes('application/json')) {
+              try {
+                const errorData = JSON.parse(text);
+                errorMessage = errorData.message || errorData.error || errorMessage;
+              } catch (parseError) {
+                // Content-type says JSON but parsing failed - show raw text
+                errorMessage = text.substring(0, 200) || errorMessage;
+              }
+            } else {
+              // Try to parse as JSON even if content-type doesn't say JSON
               try {
                 const errorData = JSON.parse(text);
                 errorMessage = errorData.message || errorData.error || errorMessage;
               } catch {
+                // Not JSON, use raw text
                 errorMessage = text.substring(0, 200) || errorMessage;
               }
             }
           }
         } catch (e) {
           console.error('Error parsing error response:', e);
+          // If we can't read the response, use the status-based message
         }
         console.error('PDF generation failed:', errorMessage);
         alert(`Failed to generate PDF: ${errorMessage}`);
@@ -155,14 +163,31 @@ const ReportsManagement: React.FC = () => {
         const clonedResponse = response.clone();
         try {
           const text = await clonedResponse.text();
-          const errorData = JSON.parse(text);
+          // Check if text is empty or whitespace
+          if (!text || !text.trim()) {
+            throw new Error('Empty response from server');
+          }
+          // Try to parse as JSON
+          let errorData;
+          try {
+            errorData = JSON.parse(text);
+          } catch (parseError) {
+            // If JSON parsing fails, show the raw text (first 500 chars)
+            const errorMessage = text.length > 500 
+              ? `${text.substring(0, 500)}...` 
+              : text;
+            console.error('PDF generation failed - non-JSON response:', contentType, errorMessage);
+            alert(`Failed to generate PDF. Server returned: ${errorMessage}`);
+            return;
+          }
           const errorMessage = errorData.message || errorData.error || 'Invalid response from server';
           console.error('PDF generation failed:', errorMessage);
           alert(`Failed to generate PDF: ${errorMessage}`);
           return;
         } catch (e) {
-          console.error('Unexpected response format:', contentType, e);
-          alert('Failed to generate PDF: Unexpected response format from server');
+          const errorMsg = e instanceof Error ? e.message : 'Unknown error';
+          console.error('Unexpected response format:', contentType, errorMsg);
+          alert(`Failed to generate PDF: ${errorMsg}`);
           return;
         }
       }

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getApiUrl } from '../utils/api';
+import logo3 from '../assets/logo3.jpg';
 
 const UserLogin: React.FC = () => {
   const [email, setEmail] = useState<string>('');
@@ -73,6 +74,13 @@ const UserLogin: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-md">
         <div className="text-center mb-8">
+          <div className="flex justify-center mb-4">
+            <img 
+              src={logo3} 
+              alt="Al Hamad Oil Factory Logo" 
+              className="h-24 w-auto object-contain"
+            />
+          </div>
           <h2 className="text-3xl font-bold text-gray-800 mb-2">Welcome Back</h2>
           <p className="text-gray-600">Sign in to your account</p>
         </div>

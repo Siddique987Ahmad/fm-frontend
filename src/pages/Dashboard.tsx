@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchProductTypes, type ProductType } from '../utils/productTypes';
+import Logo2 from '../assets/Logo2.jpg';
 
 // TypeScript interfaces
 interface Product {
@@ -530,7 +531,13 @@ const Dashboard: React.FC = () => {
         {/* Header with user info */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">Al Hamad Oil Factory Dashboard</h1>
+            <div className="mb-3">
+              <img 
+                src={Logo2} 
+                alt="Al Hamad Oil Factory Logo" 
+                className="h-12 sm:h-14 md:h-16 w-auto object-contain"
+              />
+            </div>
             <p className="text-gray-600 mt-2">
               Welcome back, {user.firstName} {user.lastName} • {user.role.displayName}
             </p>

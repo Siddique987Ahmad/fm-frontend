@@ -123,14 +123,13 @@ const ReportsDashboard: React.FC = () => {
       setLoading(true);
       const params = new URLSearchParams();
       if (reportFilters.category) params.append('category', reportFilters.category);
-      
-      const response = await fetch(`${API_BASE_URL}/expenses?${params}`);
-      const result = await response.json();
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const result = await authenticatedFetch<{ success: boolean; data?: any }>(`/expenses?${params.toString()}`);
       
       if (result.success && result.data) {
         setExpenses(result.data.expenses || []);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching expenses:', error);
     } finally {
       setLoading(false);
@@ -167,19 +166,44 @@ const ReportsDashboard: React.FC = () => {
         url = `${API_BASE_URL}/reports/products/${reportFilters.productType}/pdf?${params}`;
       }
 
+      // Use Authorization header for both flows (works for user and admin)
+      const token = localStorage.getItem('adminToken') || localStorage.getItem('userToken');
+
       if (format === 'download') {
-        // Direct download
-        window.open(url, '_blank');
-        setSuccess('Report download started');
+        // Download PDF as blob with auth header
+        const response = await fetch(url, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : undefined
+        });
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(`Failed to generate PDF (HTTP ${response.status}). ${text?.slice(0,120)}`);
+        }
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        const filePrefix = activeTab === 'expenses' ? 'expenses' : `products-${reportFilters.productType}`;
+        a.download = `${filePrefix}-report-${reportFilters.startDate}-to-${reportFilters.endDate}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(downloadUrl);
+        document.body.removeChild(a);
+        setSuccess('Report downloaded');
       } else {
-        // Save to server
-        const response = await fetch(url);
+        // Save to server; expect JSON
+        const response = await fetch(url, {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : undefined
+        });
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          const text = await response.text();
+          throw new Error(`Expected JSON, got ${contentType}. ${text?.slice(0,120)}`);
+        }
         const result = await response.json();
-        
         if (result.success) {
           setSuccess(`Report saved successfully: ${result.data.filename}`);
         } else {
-          setError('Failed to save report');
+          setError(result.message || 'Failed to save report');
         }
       }
     } catch (error) {

@@ -97,8 +97,11 @@ const ReportsManagement: React.FC = () => {
   // Generate PDF report
   const generatePDF = async (reportType: string, productName?: string) => {
     try {
-      const token = localStorage.getItem('adminToken');
-  let url = `${import.meta.env.VITE_API_URL ?? '/api'}/admin/reports/pdf/${reportType}?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
+      const { getApiUrl } = await import('../utils/apiClient');
+      const apiUrl = getApiUrl();
+      const token = localStorage.getItem('adminToken') || localStorage.getItem('userToken');
+      
+      let url = `${apiUrl}/admin/reports/pdf/${reportType}?startDate=${dateRange.startDate}&endDate=${dateRange.endDate}`;
       
       // Add product name for specific product reports
       if (productName) {
@@ -106,7 +109,10 @@ const ReportsManagement: React.FC = () => {
       }
       
       const response = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
       });
 
       if (response.ok) {
@@ -125,13 +131,24 @@ const ReportsManagement: React.FC = () => {
         window.URL.revokeObjectURL(downloadUrl);
         document.body.removeChild(a);
       } else {
-        const errorData = await response.json();
-        console.error('PDF generation failed:', errorData);
-        alert('Failed to generate PDF: ' + (errorData.message || 'Unknown error'));
+        // Try to parse error message from response
+        let errorMessage = `Failed to generate PDF (HTTP ${response.status})`;
+        try {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorMessage;
+          }
+        } catch (e) {
+          // Ignore parse errors
+        }
+        console.error('PDF generation failed:', errorMessage);
+        alert(errorMessage);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error generating PDF:', err);
-      alert('Error generating PDF: ' + (err instanceof Error ? err.message : 'Unknown error'));
+      const errorMessage = err?.message || err?.toString() || 'Unknown error';
+      alert('Error generating PDF: ' + errorMessage);
     }
   };
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { fetchProductTypes, type ProductType } from '../utils/productTypes';
+import { getApiUrl } from '../utils/api';
 
 // TypeScript interfaces
 interface ReportFilters {
@@ -66,7 +67,8 @@ const LoadingSpinner: React.FC = () => (
   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
 );
 
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? '/api';
+// Use getApiUrl() to ensure we always point to the backend, not the frontend
+const getApiBaseUrl = () => getApiUrl();
 
 const ReportsDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'expenses' | 'products'>('expenses');
@@ -155,6 +157,7 @@ const ReportsDashboard: React.FC = () => {
       });
       params.append('download', format === 'download' ? 'true' : 'false');
 
+      const API_BASE_URL = getApiBaseUrl();
       let url = '';
       if (activeTab === 'expenses') {
         url = `${API_BASE_URL}/reports/expenses/pdf?${params}`;
@@ -241,6 +244,7 @@ const ReportsDashboard: React.FC = () => {
         return;
       }
 
+      const API_BASE_URL = getApiBaseUrl();
       let url = '';
       let payload: any = { expenseIds: selectedExpenses };
 

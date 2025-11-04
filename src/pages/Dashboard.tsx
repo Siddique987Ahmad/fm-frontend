@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchProductTypes, type ProductType } from '../utils/productTypes';
-import Logo2 from '../assets/Logo2.jpg';
+import Logo2 from '../assets/Logo2.png';
 
 // TypeScript interfaces
 interface Product {

@@ -532,14 +532,18 @@ const Dashboard: React.FC = () => {
         <div className="flex justify-between items-start mb-8">
           <div className="flex items-center gap-4">
             {/* Logo on left side */}
-            <div>
+            <div className="bg-transparent overflow-hidden">
               <img 
                 src={Logo2} 
                 alt="Al Hamad Oil Factory Logo" 
                 className="h-12 sm:h-14 md:h-16 w-auto object-contain"
                 style={{ 
                   backgroundColor: 'transparent',
-                  backgroundImage: 'none'
+                  backgroundImage: 'none',
+                  mixBlendMode: 'normal',
+                  background: 'transparent',
+                  border: 'none',
+                  outline: 'none'
                 }}
               />
             </div>

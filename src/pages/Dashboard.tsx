@@ -527,27 +527,27 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Sticky Logo Header */}
-      <div className="sticky top-0 z-50 bg-gray-100 shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+      <div className="max-w-7xl mx-auto p-6">
+        {/* Logo on left side top */}
+        <div className="mb-6">
           <img 
             src={Logo2} 
             alt="Al Hamad Oil Factory Logo" 
-            className="h-40 w-64"
-            style={{ backgroundColor: 'transparent' }}
+            className="h-24 sm:h-28 md:h-32 w-auto object-contain"
+            style={{ 
+              backgroundColor: 'transparent',
+              backgroundImage: 'none'
+            }}
           />
         </div>
-      </div>
-      
-      <div className="p-6">
-        <div className="max-w-7xl mx-auto">
-          {/* Header with user info */}
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <p className="text-gray-600 mt-2">
-                Welcome back, {user.firstName} {user.lastName} • {user.role.displayName}
-              </p>
-            </div>
+        
+        {/* Header with user info */}
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <p className="text-gray-600 mt-2">
+              Welcome back, {user.firstName} {user.lastName} • {user.role.displayName}
+            </p>
+          </div>
           <div className="flex items-center space-x-4">
             <div className="text-right">
               <p className="text-sm font-medium text-gray-900">{user.firstName} {user.lastName}</p>
@@ -639,7 +639,6 @@ const Dashboard: React.FC = () => {
             </div>
           ))}
         </div>
-      </div>
 
       {/* Popup Modal */}
       {isPopupOpen && selectedProduct && !selectedProduct.isExpense && (
@@ -879,8 +878,8 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
       )}
-        </div>
       </div>
+    </div>
   );
 };
 

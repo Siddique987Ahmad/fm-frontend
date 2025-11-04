@@ -158,11 +158,23 @@ const ReportsManagement: React.FC = () => {
       }
 
       // Check if response is actually a PDF
-      if (!contentType.includes('application/pdf') && !contentType.includes('application/octet-stream')) {
-        // Might be a JSON error even with 200 status - clone response to read it
-        const clonedResponse = response.clone();
+      // Read the response as arrayBuffer to check for PDF magic bytes
+      const arrayBuffer = await response.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const firstBytes = String.fromCharCode(...uint8Array.slice(0, 4));
+      const isPdfContent = firstBytes === '%PDF';
+      
+      // If Content-Type is not PDF but content is PDF, treat it as PDF
+      const isPdfResponse = contentType.includes('application/pdf') || 
+                            contentType.includes('application/octet-stream') ||
+                            isPdfContent;
+      
+      if (!isPdfResponse) {
+        // Not a PDF - might be a JSON error even with 200 status
         try {
-          const text = await clonedResponse.text();
+          // Try to decode as text (for JSON errors)
+          const decoder = new TextDecoder();
+          const text = decoder.decode(uint8Array);
           // Check if text is empty or whitespace
           if (!text || !text.trim()) {
             throw new Error('Empty response from server');
@@ -191,9 +203,14 @@ const ReportsManagement: React.FC = () => {
           return;
         }
       }
+      
+      // If Content-Type was wrong but content is PDF, log a warning
+      if (isPdfContent && !contentType.includes('application/pdf')) {
+        console.warn('PDF received but Content-Type was:', contentType, '- treating as PDF anyway');
+      }
 
-      // Success - download the PDF
-      const blob = await response.blob();
+      // Success - create blob from the arrayBuffer we already read
+      const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
       
       // Verify it's actually a PDF blob
       if (blob.size === 0) {

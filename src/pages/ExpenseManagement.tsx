@@ -186,6 +186,7 @@ const ExpenseManagement: React.FC = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [authLoading, setAuthLoading] = useState<boolean>(true);
   const [employees, setEmployees] = useState<Array<{_id: string, employeeId: string, firstName: string, lastName: string, department: string, position: string, employeeType: string}>>([]);
+  const [deleteLoadingId, setDeleteLoadingId] = useState<string | null>(null);
   
   // New state for view/edit operations (removed delete functionality)
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
@@ -456,6 +457,46 @@ const ExpenseManagement: React.FC = () => {
     });
   };
 
+  const handleDeleteExpense = async (expense: Expense): Promise<void> => {
+    if (!expense || !expense._id) return;
+
+    const ok = window.confirm(`Are you sure you want to delete the expense "${expense.title}"? This action cannot be undone.`);
+    if (!ok) return;
+
+    try {
+      setError('');
+      setSuccess('');
+      setDeleteLoadingId(expense._id);
+
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const result = await authenticatedFetch<ApiResponse<null>>(`/expenses/${expense._id}`, {
+        method: 'DELETE'
+      });
+
+      if (result && (result as any).success) {
+        setSuccess('Expense deleted successfully');
+        // Refresh stats and list
+        await fetchExpenseStats();
+        if (selectedCategory) {
+          await fetchCategoryExpenses(selectedCategory.id);
+        }
+        // If currently viewing this expense, close the form
+        if (selectedExpense && selectedExpense._id === expense._id) {
+          setShowForm(false);
+          setSelectedExpense(null);
+          setActionMode('add');
+        }
+      } else {
+        setError((result as any)?.message || 'Failed to delete expense');
+      }
+    } catch (err: any) {
+      console.error('Error deleting expense:', err);
+      setError(err?.message || 'Network error while deleting expense');
+    } finally {
+      setDeleteLoadingId(null);
+    }
+  };
+
 
   const resetFormData = (): void => {
     setFormData({
@@ -589,22 +630,19 @@ const ExpenseManagement: React.FC = () => {
       };
 
       const isEditing = actionMode === 'edit' && selectedExpense;
-      const url = isEditing 
-        ? `${API_BASE_URL}/expenses/${selectedExpense._id}`
-        : `${API_BASE_URL}/expenses`;
+      const endpoint = isEditing ? `/expenses/${selectedExpense!._id}` : `/expenses`;
       const method = isEditing ? 'PUT' : 'POST';
 
-      const token = localStorage.getItem('userToken') || localStorage.getItem('adminToken');
-      const response = await fetch(url, {
-        method: method,
+      // Use shared authenticatedFetch helper so the correct API base URL is used
+      // and Authorization header is attached consistently (works both locally and in Vercel)
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      const result: ApiResponse<{ expense: Expense }> = await authenticatedFetch(endpoint, {
+        method,
+        body: JSON.stringify(payload),
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload)
+          'Content-Type': 'application/json'
+        }
       });
-
-      const result: ApiResponse<{ expense: Expense }> = await response.json();
 
       if (result.success) {
         setSuccess(`${selectedCategory.name} ${isEditing ? 'updated' : 'added'} successfully!`);
@@ -988,6 +1026,17 @@ const ExpenseManagement: React.FC = () => {
                       Close
                     </button>
                     <button
+                      onClick={() => selectedExpense && handleDeleteExpense(selectedExpense)}
+                      className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+                      disabled={deleteLoadingId === selectedExpense?._id}
+                    >
+                      {deleteLoadingId === selectedExpense?._id ? (
+                        <LoadingSpinner />
+                      ) : (
+                        'Delete Expense'
+                      )}
+                    </button>
+                    <button
                       onClick={() => {
                         if (selectedExpense) {
                           handleEditExpense(selectedExpense);
@@ -1122,6 +1171,20 @@ const ExpenseManagement: React.FC = () => {
                               title="Edit Expense"
                             >
                               <EditIcon />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteExpense(expense)}
+                              className="text-red-600 hover:text-red-900 p-1 rounded transition-colors flex items-center"
+                              title="Delete Expense"
+                              disabled={deleteLoadingId === expense._id}
+                            >
+                              {deleteLoadingId === expense._id ? (
+                                <LoadingSpinner />
+                              ) : (
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M1 7h22M10 3h4l1 2H9l1-2z" />
+                                </svg>
+                              )}
                             </button>
                           </div>
                         </td>

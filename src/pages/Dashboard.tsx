@@ -262,13 +262,42 @@ const Dashboard: React.FC = () => {
       for (const productType of typesToFetch) {
         try {
           const result = await authenticatedFetch<{ success: boolean; data?: any }>(`/products/${productType}/stats`);
-          
+
           if (result.success && result.data) {
-            totalTransactions += result.data.totalTransactions || 0;
-            totalSales += result.data.totalSales || 0;
-            totalPurchases += result.data.totalPurchases || 0;
-            totalSalesAmount += result.data.totalSalesAmount || 0;
-            totalPurchasesAmount += result.data.totalPurchasesAmount || 0;
+            // Backward-compatible parsing:
+            // New API returns result.data.stats (array grouped by transactionType)
+            // Older shape might return explicit totalSales/totalPurchases/totalSalesAmount fields
+            const data = result.data;
+
+            // Total transactions (many APIs include this)
+            totalTransactions += data.totalTransactions || data.total || 0;
+
+            if (Array.isArray(data.stats)) {
+              // data.stats is an array of {_id: transactionType, count, totalValue}
+              for (const s of data.stats) {
+                if (!s || !s._id) continue;
+                const t = s._id.toString().toLowerCase();
+                const cnt = parseInt(s.count) || 0;
+                const val = parseFloat(s.totalValue) || parseFloat(s.totalValue || s.totalWeight || 0) || 0;
+
+                if (t === 'sale') {
+                  totalSales += cnt;
+                  totalSalesAmount += val;
+                } else if (t === 'purchase') {
+                  totalPurchases += cnt;
+                  totalPurchasesAmount += val;
+                }
+              }
+            } else {
+              // Older/alternate response shape
+              totalSales += data.totalSales || 0;
+              totalPurchases += data.totalPurchases || 0;
+              totalSalesAmount += data.totalSalesAmount || data.totalAmount || 0;
+              totalPurchasesAmount += data.totalPurchasesAmount || 0;
+            }
+
+            // Debug log to help trace unexpected numbers
+            console.debug(`Stats for ${productType}:`, data);
           }
         } catch (error) {
           console.error(`Error fetching stats for ${productType}:`, error);
@@ -514,7 +543,7 @@ const Dashboard: React.FC = () => {
   // Show loading while checking authentication
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-xl font-semibold text-gray-700">Loading Dashboard...</div>
       </div>
     );
@@ -526,7 +555,7 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-white">
       <div className="max-w-7xl mx-auto p-6">
         {/* Header with logo and user info */}
         <div className="flex justify-between items-start mb-8">

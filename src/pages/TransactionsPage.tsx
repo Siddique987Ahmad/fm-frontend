@@ -449,6 +449,44 @@ const TransactionsPage: React.FC = () => {
     }
   };
 
+  // Delete transaction
+  const [deleteLoadingId, setDeleteLoadingId] = useState<string | null>(null);
+  const handleDeleteTransaction = async (transaction: Transaction) : Promise<void> => {
+    if (!selectedProduct) return;
+    const confirmed = window.confirm('Are you sure you want to delete this transaction? This action cannot be undone.');
+    if (!confirmed) return;
+
+    setError('');
+    setSuccess('');
+    setDeleteLoadingId(transaction._id);
+
+    try {
+      const { authenticatedFetch } = await import('../utils/apiClient');
+      // Use generic product endpoint to delete transaction
+      const result = await authenticatedFetch<{ success: boolean; message?: string }>(`/products/${selectedProduct.apiEndpoint}/${transaction._id}`, {
+        method: 'DELETE'
+      });
+
+      if (result.success) {
+        setSuccess('Transaction deleted successfully');
+        // Refresh list
+        await fetchTransactions();
+        // Close modals if the deleted transaction was open
+        if (selectedTransaction && selectedTransaction._id === transaction._id) {
+          closeModals();
+        }
+        setTimeout(() => setSuccess(''), 3000);
+      } else {
+        setError(result.message || 'Failed to delete transaction');
+      }
+    } catch (error) {
+      console.error('Error deleting transaction:', error);
+      setError('Network error. Please check if the server is running.');
+    } finally {
+      setDeleteLoadingId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-7xl mx-auto">
@@ -757,6 +795,18 @@ const TransactionsPage: React.FC = () => {
                                   <DownloadIcon />
                                   <span>PDF</span>
                                 </button>
+                                <button
+                                  onClick={() => handleDeleteTransaction(transaction)}
+                                  className="text-red-600 hover:text-red-900 flex items-center space-x-1"
+                                  title="Delete Transaction"
+                                  disabled={deleteLoadingId === transaction._id}
+                                >
+                                  {deleteLoadingId === transaction._id ? (
+                                    <span className="text-sm">Deleting...</span>
+                                  ) : (
+                                    <span>Delete</span>
+                                  )}
+                                </button>
                               </div>
                             </td>
                           </tr>
@@ -880,6 +930,15 @@ const TransactionsPage: React.FC = () => {
                 >
                   <DownloadIcon />
                   <span>Download Invoice</span>
+                </button>
+                <button
+                  onClick={() => {
+                    if (selectedTransaction) handleDeleteTransaction(selectedTransaction);
+                  }}
+                  className="flex-1 bg-gray-800 hover:bg-gray-900 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+                  disabled={deleteLoadingId === selectedTransaction?._id}
+                >
+                  {deleteLoadingId === selectedTransaction?._id ? 'Deleting...' : 'Delete Transaction'}
                 </button>
               </div>
             </div>

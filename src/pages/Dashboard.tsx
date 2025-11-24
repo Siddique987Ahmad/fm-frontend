@@ -20,10 +20,12 @@ interface FormData {
 }
 
 interface DashboardStats {
-  totalTransactions: number;
   salesCount: number;
   purchaseCount: number;
-  totalValue: number;
+  totalSalesAmount: number;
+  totalPurchasesAmount: number;
+  totalExpenses: number;
+  profit: number;
 }
 
 interface PaymentStatus {
@@ -113,10 +115,12 @@ const Dashboard: React.FC = () => {
 
   // State for dashboard statistics
   const [stats, setStats] = useState<DashboardStats>({
-    totalTransactions: 0,
     salesCount: 0,
     purchaseCount: 0,
-    totalValue: 0
+    totalSalesAmount: 0,
+    totalPurchasesAmount: 0,
+    totalExpenses: 0,
+    profit: 0
   });
   const [productTypes, setProductTypes] = useState<ProductType[]>([]);
 
@@ -226,9 +230,15 @@ const Dashboard: React.FC = () => {
 
   // Fetch dashboard statistics and product types on component mount
   useEffect(() => {
-    fetchStats();
     fetchProductTypesData();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch stats when productTypes are loaded
+  useEffect(() => {
+    if (productTypes.length > 0) {
+      fetchStats();
+    }
+  }, [productTypes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchProductTypesData = async (): Promise<void> => {
     try {
@@ -241,12 +251,14 @@ const Dashboard: React.FC = () => {
 
   const fetchStats = async (): Promise<void> => {
     try {
-      // Use dynamic product types if available, otherwise fallback to static ones
-      const typesToFetch = productTypes.length > 0 
-        ? productTypes.map(pt => pt.value)
-        : ['white-oil', 'yellow-oil', 'crude-oil', 'diesel', 'petrol', 'kerosene'];
+      // Only fetch if we have product types loaded
+      if (productTypes.length === 0) {
+        console.log('⏳ Waiting for product types to load before fetching stats...');
+        return;
+      }
+
+      const typesToFetch = productTypes.map(pt => pt.value);
       
-      let totalTransactions = 0;
       let totalSales = 0;
       let totalPurchases = 0;
       let totalSalesAmount = 0;
@@ -269,16 +281,18 @@ const Dashboard: React.FC = () => {
             // Older shape might return explicit totalSales/totalPurchases/totalSalesAmount fields
             const data = result.data;
 
-            // Total transactions (many APIs include this)
-            totalTransactions += data.totalTransactions || data.total || 0;
+            console.log(`📊 Stats response for ${productType}:`, JSON.stringify(data, null, 2));
 
             if (Array.isArray(data.stats)) {
               // data.stats is an array of {_id: transactionType, count, totalValue}
+              console.log(`Using stats array format for ${productType}`);
               for (const s of data.stats) {
                 if (!s || !s._id) continue;
                 const t = s._id.toString().toLowerCase();
                 const cnt = parseInt(s.count) || 0;
-                const val = parseFloat(s.totalValue) || parseFloat(s.totalValue || s.totalWeight || 0) || 0;
+                const val = parseFloat(s.totalValue) || 0;
+
+                console.log(`  - ${t}: count=${cnt}, value=${val}`);
 
                 if (t === 'sale') {
                   totalSales += cnt;
@@ -289,15 +303,28 @@ const Dashboard: React.FC = () => {
                 }
               }
             } else {
-              // Older/alternate response shape
-              totalSales += data.totalSales || 0;
-              totalPurchases += data.totalPurchases || 0;
-              totalSalesAmount += data.totalSalesAmount || data.totalAmount || 0;
-              totalPurchasesAmount += data.totalPurchasesAmount || 0;
+              // Older/alternate response shape with flat structure
+              console.log(`Using flat structure format for ${productType}`);
+              const sales = data.totalSales || 0;
+              const purchases = data.totalPurchases || 0;
+              const salesAmt = data.totalSalesAmount || 0;
+              const purchasesAmt = data.totalPurchasesAmount || 0;
+              
+              console.log(`  - Sales: count=${sales}, amount=${salesAmt}`);
+              console.log(`  - Purchases: count=${purchases}, amount=${purchasesAmt}`);
+              
+              totalSales += sales;
+              totalPurchases += purchases;
+              totalSalesAmount += salesAmt;
+              totalPurchasesAmount += purchasesAmt;
             }
 
-            // Debug log to help trace unexpected numbers
-            console.debug(`Stats for ${productType}:`, data);
+            console.log(`📈 Running totals after ${productType}:`, {
+              totalSales,
+              totalPurchases,
+              totalSalesAmount,
+              totalPurchasesAmount
+            });
           }
         } catch (error) {
           console.error(`Error fetching stats for ${productType}:`, error);
@@ -305,12 +332,35 @@ const Dashboard: React.FC = () => {
         }
       }
       
+      // Fetch expenses stats
+      let totalExpenses = 0;
+      try {
+        const expensesResult = await authenticatedFetch<{ success: boolean; data?: any }>(`/expenses/stats`);
+        if (expensesResult.success && expensesResult.data) {
+          // The expenses API returns summary array with category stats
+          if (Array.isArray(expensesResult.data.summary)) {
+            totalExpenses = expensesResult.data.summary.reduce((sum: number, stat: any) => {
+              return sum + (parseFloat(stat.totalAmount) || 0);
+            }, 0);
+          }
+          console.debug('Expenses stats:', expensesResult.data);
+        }
+      } catch (error) {
+        console.error('Error fetching expenses stats:', error);
+        // Continue with expenses as 0
+      }
+      
+      // Calculate profit: Sales - Purchases - Expenses
+      const profit = totalSalesAmount - totalPurchasesAmount - totalExpenses;
+      
       // Update stats with combined data
       setStats({
-        totalTransactions,
         salesCount: totalSales,
         purchaseCount: totalPurchases,
-        totalValue: totalSalesAmount + totalPurchasesAmount
+        totalSalesAmount,
+        totalPurchasesAmount,
+        totalExpenses,
+        profit
       });
       
     } catch (error) {
@@ -635,20 +685,22 @@ const Dashboard: React.FC = () => {
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-sm font-medium text-gray-500">Total Transactions</h3>
-            <p className="text-2xl font-bold text-gray-900">{stats.totalTransactions}</p>
+            <h3 className="text-sm font-medium text-gray-500">Total Sales</h3>
+            <p className="text-2xl font-bold text-green-600">PKR{stats.totalSalesAmount.toLocaleString()}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-sm font-medium text-gray-500">Sales</h3>
-            <p className="text-2xl font-bold text-green-600">{stats.salesCount}</p>
+            <h3 className="text-sm font-medium text-gray-500">Total Purchases</h3>
+            <p className="text-2xl font-bold text-blue-600">PKR{stats.totalPurchasesAmount.toLocaleString()}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-sm font-medium text-gray-500">Purchases</h3>
-            <p className="text-2xl font-bold text-blue-600">{stats.purchaseCount}</p>
+            <h3 className="text-sm font-medium text-gray-500">Total Expenses</h3>
+            <p className="text-2xl font-bold text-orange-600">PKR{stats.totalExpenses.toLocaleString()}</p>
           </div>
           <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-sm font-medium text-gray-500">Total Value</h3>
-            <p className="text-2xl font-bold text-purple-600">PKR{stats.totalValue.toLocaleString()}</p>
+            <h3 className="text-sm font-medium text-gray-500">Profit</h3>
+            <p className={`text-2xl font-bold ${stats.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              PKR{stats.profit.toLocaleString()}
+            </p>
           </div>
         </div>
         

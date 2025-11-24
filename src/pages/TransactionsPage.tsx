@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getApiUrl } from '../utils/api';
+import { fetchProductTypes, type ProductType } from '../utils/productTypes';
 
 // Types
 interface Transaction {
@@ -42,8 +43,7 @@ interface PaymentStatusInfo {
 interface Product {
   name: string;
   color: string;
-  apiEndpoint: string;
-  available: boolean;
+  productType: string;
 }
 
 interface EditFormData {
@@ -135,24 +135,49 @@ const TransactionsPage: React.FC = () => {
     totalBalance: '',
     notes: ''
   });
+  const [productTypes, setProductTypes] = useState<ProductType[]>([]);
 
-  // Available products
-  const products: Product[] = [
-    { name: 'White Oil', color: 'bg-blue-500 hover:bg-blue-600', apiEndpoint: 'white-oil', available: true },
-    { name: 'Yellow Oil', color: 'bg-yellow-500 hover:bg-yellow-600', apiEndpoint: 'yellow-oil', available: true },
-    { name: 'Crude Oil', color: 'bg-green-500 hover:bg-green-600', apiEndpoint: 'crude-oil', available: false },
-    { name: 'Diesel', color: 'bg-yellow-500 hover:bg-yellow-600', apiEndpoint: 'diesel', available: false },
-    { name: 'Petrol', color: 'bg-red-500 hover:bg-red-600', apiEndpoint: 'petrol', available: false },
-    { name: 'Kerosene', color: 'bg-purple-500 hover:bg-purple-600', apiEndpoint: 'kerosene', available: false },
-    { name: 'LPG', color: 'bg-orange-500 hover:bg-orange-600', apiEndpoint: 'lpg', available: false },
-    { name: 'Natural Gas', color: 'bg-teal-500 hover:bg-teal-600', apiEndpoint: 'natural-gas', available: false }
-  ];
+  // Fetch product types on component mount
+  useEffect(() => {
+    fetchProductTypesData();
+  }, []);
 
+  // Fetch transactions when product or filters change
   useEffect(() => {
     if (selectedProduct) {
       fetchTransactions();
     }
   }, [selectedProduct, filters, pagination.currentPage]);
+
+  const fetchProductTypesData = async (): Promise<void> => {
+    try {
+      const types = await fetchProductTypes();
+      setProductTypes(types);
+    } catch (error) {
+      console.error('Error fetching product types:', error);
+      setError('Failed to load product types. Please refresh the page.');
+    }
+  };
+
+  // Generate products list from fetched product types
+  const getProducts = (): Product[] => {
+    const colors = [
+      'bg-blue-500 hover:bg-blue-600',
+      'bg-yellow-500 hover:bg-yellow-600',
+      'bg-green-500 hover:bg-green-600',
+      'bg-amber-500 hover:bg-amber-600',
+      'bg-red-500 hover:bg-red-600',
+      'bg-purple-500 hover:bg-purple-600',
+      'bg-indigo-500 hover:bg-indigo-600',
+      'bg-pink-500 hover:bg-pink-600'
+    ];
+    
+    return productTypes.map((productType, index) => ({
+      name: productType.name,
+      color: colors[index % colors.length],
+      productType: productType.value
+    }));
+  };
 
   const fetchTransactions = async (): Promise<void> => {
     if (!selectedProduct) return;
@@ -170,7 +195,7 @@ const TransactionsPage: React.FC = () => {
       });
 
       const { authenticatedFetch } = await import('../utils/apiClient');
-      const result = await authenticatedFetch<{ success: boolean; data?: any; pagination?: any; total?: number }>(`/products/${selectedProduct.apiEndpoint}?${queryParams}`);
+      const result = await authenticatedFetch<{ success: boolean; data?: any; pagination?: any; total?: number }>(`/products/${selectedProduct.productType}?${queryParams}`);
 
       if (result.success) {
         setTransactions(result.data);
@@ -191,11 +216,6 @@ const TransactionsPage: React.FC = () => {
   };
 
   const handleProductSelect = (product: Product): void => {
-    if (!product.available) {
-      setError(`${product.name} transactions are not available yet. Only White Oil and Yellow Oil are currently implemented.`);
-      return;
-    }
-    
     setSelectedProduct(product);
     setError('');
     setTransactions([]);
@@ -348,7 +368,7 @@ const TransactionsPage: React.FC = () => {
       };
 
       const { authenticatedFetch } = await import('../utils/apiClient');
-      const result = await authenticatedFetch<{ success: boolean; data?: any }>(`/products/${selectedProduct.apiEndpoint}/${selectedTransaction._id}`, {
+      const result = await authenticatedFetch<{ success: boolean; data?: any }>(`/products/${selectedProduct.productType}/${selectedTransaction._id}`, {
         method: 'PUT',
         body: JSON.stringify(payload)
       });
@@ -417,7 +437,7 @@ const TransactionsPage: React.FC = () => {
       const API_BASE_URL = getApiBaseUrl();
       const token = localStorage.getItem('adminToken') || localStorage.getItem('userToken');
       
-      const url = `${API_BASE_URL}/products/${selectedProduct.apiEndpoint}/${transaction._id}/invoice`;
+      const url = `${API_BASE_URL}/products/${selectedProduct.productType}/${transaction._id}/invoice`;
       
       const response = await fetch(url, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : undefined
@@ -433,7 +453,7 @@ const TransactionsPage: React.FC = () => {
       const downloadUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = downloadUrl;
-      a.download = `${selectedProduct.apiEndpoint}-invoice-${transaction._id.slice(-8)}.pdf`;
+      a.download = `${selectedProduct.productType}-invoice-${transaction._id.slice(-8)}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(downloadUrl);
@@ -463,7 +483,7 @@ const TransactionsPage: React.FC = () => {
     try {
       const { authenticatedFetch } = await import('../utils/apiClient');
       // Use generic product endpoint to delete transaction
-      const result = await authenticatedFetch<{ success: boolean; message?: string }>(`/products/${selectedProduct.apiEndpoint}/${transaction._id}`, {
+      const result = await authenticatedFetch<{ success: boolean; message?: string }>(`/products/${selectedProduct.productType}/${transaction._id}`, {
         method: 'DELETE'
       });
 
@@ -550,31 +570,21 @@ const TransactionsPage: React.FC = () => {
           <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
             <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Select Product</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {products.map((product, index) => (
+              {getProducts().map((product, index) => (
                 <div
                   key={index}
                   onClick={() => handleProductSelect(product)}
-                  className={`${product.color} ${
-                    product.available ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
-                  } rounded-lg shadow-lg p-6 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-xl relative`}
+                  className={`${product.color} cursor-pointer rounded-lg shadow-lg p-6 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-xl`}
                 >
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-xl font-semibold mb-2">{product.name}</h3>
                       <p className="text-white/80 text-sm">
-                        {product.available ? 'Click to view transactions' : 'Coming soon'}
+                        Click to view transactions
                       </p>
                     </div>
                     <PackageIcon />
                   </div>
-                  
-                  {!product.available && (
-                    <div className="absolute top-2 right-2">
-                      <span className="bg-gray-800 text-white text-xs px-2 py-1 rounded">
-                        Soon
-                      </span>
-                    </div>
-                  )}
                 </div>
               ))}
             </div>

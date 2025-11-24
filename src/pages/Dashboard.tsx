@@ -302,6 +302,8 @@ const Dashboard: React.FC = () => {
                   totalPurchasesAmount += val;
                 }
               }
+
+              
             } else {
               // Older/alternate response shape with flat structure
               console.log(`Using flat structure format for ${productType}`);

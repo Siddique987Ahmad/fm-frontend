@@ -28,6 +28,13 @@ interface DashboardStats {
   profit: number;
 }
 
+interface ProductStats {
+  [productType: string]: {
+    totalSales: number;
+    totalPurchases: number;
+  };
+}
+
 interface PaymentStatus {
   type: 'pending' | 'advance' | 'full' | 'overpaid';
   amount: number;
@@ -122,6 +129,7 @@ const Dashboard: React.FC = () => {
     totalExpenses: 0,
     profit: 0
   });
+  const [productStats, setProductStats] = useState<ProductStats>({});
   const [productTypes, setProductTypes] = useState<ProductType[]>([]);
 
   // Check authentication on component mount
@@ -263,6 +271,7 @@ const Dashboard: React.FC = () => {
       let totalPurchases = 0;
       let totalSalesAmount = 0;
       let totalPurchasesAmount = 0;
+      const newProductStats: ProductStats = {};
       
       // Get API URL - handle relative paths
       const apiUrl = API_BASE_URL && !API_BASE_URL.startsWith('/')
@@ -286,6 +295,8 @@ const Dashboard: React.FC = () => {
             if (Array.isArray(data.stats)) {
               // data.stats is an array of {_id: transactionType, count, totalValue}
               console.log(`Using stats array format for ${productType}`);
+              let productSales = 0;
+              let productPurchases = 0;
               for (const s of data.stats) {
                 if (!s || !s._id) continue;
                 const t = s._id.toString().toLowerCase();
@@ -297,11 +308,17 @@ const Dashboard: React.FC = () => {
                 if (t === 'sale') {
                   totalSales += cnt;
                   totalSalesAmount += val;
+                  productSales += val;
                 } else if (t === 'purchase') {
                   totalPurchases += cnt;
                   totalPurchasesAmount += val;
+                  productPurchases += val;
                 }
               }
+              newProductStats[productType] = {
+                totalSales: productSales,
+                totalPurchases: productPurchases
+              };
 
               
             } else {
@@ -315,10 +332,16 @@ const Dashboard: React.FC = () => {
               console.log(`  - Sales: count=${sales}, amount=${salesAmt}`);
               console.log(`  - Purchases: count=${purchases}, amount=${purchasesAmt}`);
               
-              totalSales += sales;
-              totalPurchases += purchases;
               totalSalesAmount += salesAmt;
               totalPurchasesAmount += purchasesAmt;
+              totalSales += sales;
+              totalPurchases += purchases;
+              
+              // Store per-product stats
+              newProductStats[productType] = {
+                totalSales: salesAmt,
+                totalPurchases: purchasesAmt
+              };
             }
 
             console.log(`📈 Running totals after ${productType}:`, {
@@ -364,6 +387,8 @@ const Dashboard: React.FC = () => {
         totalExpenses,
         profit
       });
+      
+      setProductStats(newProductStats);
       
     } catch (error) {
       console.error('Error fetching stats:', error);
@@ -708,23 +733,44 @@ const Dashboard: React.FC = () => {
         
         {/* Dashboard Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {getDashboardBoxes().map((box, index) => (
-            <div
-              key={index}
-              onClick={() => handleBoxClick(box)}
-              className={`${box.color} rounded-lg shadow-lg p-6 text-white cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-xl`}
-            >
-              <div className="flex items-center justify-between">
-                <div>
+          {getDashboardBoxes().map((box, index) => {
+            // Get product type info and stats
+            const productType = productTypes.find(pt => pt.value === box.productType);
+            const allowedTransactions = productType?.allowedTransactions || [];
+            const stats = productStats[box.productType] || { totalSales: 0, totalPurchases: 0 };
+            
+            return (
+              <div
+                key={index}
+                onClick={() => handleBoxClick(box)}
+                className={`${box.color} rounded-lg shadow-lg p-6 text-white cursor-pointer transform transition-all duration-200 hover:scale-105 hover:shadow-xl`}
+              >
+                <div className="flex flex-col">
                   <h3 className="text-xl font-semibold mb-2">{box.name}</h3>
-                  <p className="text-white/80 text-sm">
-                    {box.isExpense ? 'Manage expenses' : 'Click to manage'}
-                  </p>
+                  
+                  {box.isExpense ? (
+                    <p className="text-white/80 text-sm">Manage expenses</p>
+                  ) : (
+                    <div className="space-y-1">
+                      {allowedTransactions.includes('sale') && (
+                        <p className="text-white/90 text-sm">
+                          Total Sales: PKR {stats.totalSales.toLocaleString()}
+                        </p>
+                      )}
+                      {allowedTransactions.includes('purchase') && (
+                        <p className="text-white/90 text-sm">
+                          Total Purchases: PKR {stats.totalPurchases.toLocaleString()}
+                        </p>
+                      )}
+                      {allowedTransactions.length === 0 && (
+                        <p className="text-white/80 text-sm">Click to manage</p>
+                      )}
+                    </div>
+                  )}
                 </div>
-                {/* Icon removed as requested */}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
       {/* Popup Modal */}

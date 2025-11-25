@@ -160,6 +160,28 @@ const TransactionsPage: React.FC = () => {
   };
 
   // Generate products list from fetched product types
+  // Calculate summary for filtered transactions
+  const calculateSummary = () => {
+    if (!filters.clientName || transactions.length === 0) return null;
+    
+    const summary = {
+      totalWeight: 0,
+      totalAmount: 0,
+      totalReceived: 0,
+      totalOutstanding: 0
+    };
+    
+    transactions.forEach(txn => {
+      summary.totalWeight += txn.weight || 0;
+      summary.totalAmount += txn.totalBalance || 0;
+      summary.totalReceived += txn.remainingAmount || 0;
+    });
+    
+    summary.totalOutstanding = summary.totalAmount - summary.totalReceived;
+    
+    return summary;
+  };
+
   const getProducts = (): Product[] => {
     const colors = [
       'bg-blue-500 hover:bg-blue-600',
@@ -430,40 +452,97 @@ const TransactionsPage: React.FC = () => {
   const handleDownloadInvoice = async (transaction: Transaction): Promise<void> => {
     if (!selectedProduct || !transaction) return;
     
+    setLoading(true);
+    setError('');
     try {
-      setLoading(true);
-      setError('');
-      
-      const API_BASE_URL = getApiBaseUrl();
+      const { getApiUrl } = await import('../utils/apiClient');
+      const apiUrl = getApiUrl();
       const token = localStorage.getItem('adminToken') || localStorage.getItem('userToken');
       
-      const url = `${API_BASE_URL}/products/${selectedProduct.productType}/${transaction._id}/invoice`;
-      
-      const response = await fetch(url, {
-        headers: token ? { 'Authorization': `Bearer ${token}` } : undefined
-      });
+      const response = await fetch(
+        `${apiUrl}/products/${selectedProduct.productType}/${transaction._id}/invoice`,
+        {
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+        }
+      );
       
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to generate invoice: ${response.statusText}`);
+        throw new Error('Failed to download invoice');
       }
       
       // Get the PDF blob
       const blob = await response.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
+      const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = downloadUrl;
-      a.download = `${selectedProduct.productType}-invoice-${transaction._id.slice(-8)}.pdf`;
+      a.href = url;
+      a.download = `${transaction.clientName.toLowerCase().replace(/\s+/g, '-')}-invoice.pdf`;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(downloadUrl);
       document.body.removeChild(a);
-      
-      setSuccess('Invoice downloaded successfully!');
-      setTimeout(() => setSuccess(''), 3000);
+      window.URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Error downloading invoice:', error);
-      setError('Failed to download invoice. Please try again.');
+      setError('Failed to download invoice');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownloadClientReport = async (): Promise<void> => {
+    if (!selectedProduct || !filters.clientName) return;
+    
+    console.log('🔍 [Frontend] Starting client report download...');
+    console.log('🔍 [Frontend] Product Type:', selectedProduct.productType);
+    console.log('🔍 [Frontend] Client Name:', filters.clientName);
+    
+    setLoading(true);
+    try {
+      const { getApiUrl } = await import('../utils/apiClient');
+      const apiUrl = getApiUrl();
+      const token = localStorage.getItem('adminToken') || localStorage.getItem('userToken');
+      
+      const url = `${apiUrl}/products/${selectedProduct.productType}/client-report?clientName=${encodeURIComponent(filters.clientName)}`;
+      console.log('🔍 [Frontend] Full URL:', url);
+      console.log('🔍 [Frontend] Has Token:', !!token);
+      
+      const response = await fetch(url, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      
+      console.log('🔍 [Frontend] Response Status:', response.status);
+      console.log('🔍 [Frontend] Response OK:', response.ok);
+      console.log('🔍 [Frontend] Content-Type:', response.headers.get('content-type'));
+      
+      if (!response.ok) {
+        // Try to get error message from response
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          console.error('🔍 [Frontend] Error Response:', errorData);
+          throw new Error(errorData.message || 'Failed to download client report');
+        }
+        throw new Error('Failed to download client report');
+      }
+      
+      // Get the PDF blob
+      const blob = await response.blob();
+      console.log('🔍 [Frontend] Blob size:', blob.size);
+      
+      const url2 = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url2;
+      a.download = `${filters.clientName.toLowerCase().replace(/\s+/g, '-')}-report.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url2);
+      
+      console.log('✅ [Frontend] PDF downloaded successfully');
+      setSuccess('Client report downloaded successfully');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error) {
+      console.error('❌ [Frontend] Error downloading client report:', error);
+      setError('Failed to download client report');
     } finally {
       setLoading(false);
     }
@@ -691,8 +770,20 @@ const TransactionsPage: React.FC = () => {
                   <h2 className="text-lg font-semibold text-gray-800">
                     {selectedProduct.name} Transactions ({pagination.total} total)
                   </h2>
-                  <div className="text-sm text-gray-500">
-                    All transactions are for {selectedProduct.name}
+                  <div className="flex items-center space-x-4">
+                    {filters.clientName && (
+                      <button
+                        onClick={handleDownloadClientReport}
+                        disabled={loading || transactions.length === 0}
+                        className="flex items-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <DownloadIcon />
+                        <span>Download Client Report PDF</span>
+                      </button>
+                    )}
+                    <div className="text-sm text-gray-500">
+                      All transactions are for {selectedProduct.name}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -823,6 +914,39 @@ const TransactionsPage: React.FC = () => {
                         );
                       })}
                     </tbody>
+                    {/* Summary Row */}
+                    {filters.clientName && calculateSummary() && (() => {
+                      const summary = calculateSummary()!;
+                      return (
+                        <tfoot className="bg-gray-100 border-t-2 border-gray-400">
+                          <tr className="font-bold">
+                            <td className="px-6 py-4 text-right" colSpan={3}>
+                              TOTAL:
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {summary.totalWeight.toFixed(2)} kg
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              -
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              PKR {summary.totalAmount.toLocaleString()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              PKR {summary.totalReceived.toLocaleString()}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                summary.totalOutstanding > 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
+                              }`}>
+                                {summary.totalOutstanding > 0 ? 'Pending' : 'Paid'}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4"></td>
+                          </tr>
+                        </tfoot>
+                      );
+                    })()}
                   </table>
                 </div>
               )}

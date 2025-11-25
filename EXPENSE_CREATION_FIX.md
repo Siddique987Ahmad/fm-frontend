@@ -40,7 +40,7 @@ router.post('/', protect, checkPermission('create_expense'), createExpense);
 ```
 
 **Valid factoryType values:**
-- `rent`, `electricity`, `maintenance`, `equipment`, `raw-materials`, `transportation`, `other`
+- `rent`, `electricity`, `maintenance`, `equipment`, `raw-materials`, `transportation`, `chai`, `other`
 
 #### **Personal Expenses:**
 ```json

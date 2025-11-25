@@ -297,7 +297,7 @@ const ExpenseManagement: React.FC = () => {
           key: 'factoryType', 
           label: 'Expense Type', 
           type: 'select', 
-          options: ['rent', 'electricity', 'maintenance', 'equipment', 'raw-materials', 'transportation', 'other'], 
+          options: ['rent', 'electricity', 'maintenance', 'equipment', 'raw-materials', 'transportation','chai', 'other'], 
           required: true 
         }
       ]

@@ -208,9 +208,13 @@ const TransactionsPage: React.FC = () => {
     setError('');
     
     try {
+      // When filtering by client name, fetch all transactions (no pagination)
+      // Otherwise use normal pagination
+      const limit = filters.clientName ? '1000' : '10';
+      
       const queryParams = new URLSearchParams({
         page: pagination.currentPage.toString(),
-        limit: '10',
+        limit: limit,
         ...Object.fromEntries(
           Object.entries(filters).filter(([_, value]) => value !== '')
         )
@@ -936,11 +940,18 @@ const TransactionsPage: React.FC = () => {
                               PKR {summary.totalReceived.toLocaleString()}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                summary.totalOutstanding > 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
-                              }`}>
-                                {summary.totalOutstanding > 0 ? 'Pending' : 'Paid'}
-                              </span>
+                              <div className="flex flex-col">
+                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                  summary.totalOutstanding > 0 ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'
+                                }`}>
+                                  {summary.totalOutstanding > 0 ? 'Pending' : 'Paid'}
+                                </span>
+                                {summary.totalOutstanding > 0 && (
+                                  <span className="text-xs text-red-600 font-semibold mt-1">
+                                    PKR {summary.totalOutstanding.toLocaleString()}
+                                  </span>
+                                )}
+                              </div>
                             </td>
                             <td className="px-6 py-4"></td>
                           </tr>
@@ -951,8 +962,8 @@ const TransactionsPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Pagination */}
-              {pagination.totalPages > 1 && (
+              {/* Pagination - Hidden when filtering by client name */}
+              {!filters.clientName && pagination.totalPages > 1 && (
                 <div className="px-6 py-4 border-t border-gray-200">
                   <div className="flex items-center justify-between">
                     <div className="text-sm text-gray-700">

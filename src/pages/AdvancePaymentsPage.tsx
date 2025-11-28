@@ -212,7 +212,7 @@ const AdvancePaymentsPage: React.FC = () => {
       {/* Header */}
       <div className="mb-6">
         <button
-          onClick={() => navigate("/dashboard")}
+          onClick={() => navigate("/user/main-dashboard")}
           className="flex items-center text-gray-600 hover:text-gray-900 mb-4 transition-colors"
         >
           <ArrowLeftIcon />

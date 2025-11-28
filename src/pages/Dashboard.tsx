@@ -162,6 +162,14 @@ const Dashboard: React.FC = () => {
   const [productStats, setProductStats] = useState<ProductStats>({});
   const [productTypes, setProductTypes] = useState<ProductType[]>([]);
 
+  // State for client autocomplete
+  const [clientSuggestions, setClientSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedClientAdvance, setSelectedClientAdvance] = useState<number>(0);
+  const [clientsWithAdvances, setClientsWithAdvances] = useState<
+    Array<{ _id: string; totalAdvance: number }>
+  >([]);
+
   // Check authentication on component mount
   useEffect(() => {
     const checkAuth = async () => {
@@ -458,11 +466,65 @@ const Dashboard: React.FC = () => {
     setSuccess("");
   };
 
-  const handleActionSelect = (action: string): void => {
+  // Fetch client suggestions for autocomplete
+  const fetchClientSuggestions = async (
+    transactionType: string
+  ): Promise<void> => {
+    if (!selectedProduct) return;
+
+    try {
+      const token = localStorage.getItem("userToken");
+
+      const response = await fetch(
+        `${API_BASE_URL}/products/${selectedProduct.productType}/clients?transactionType=${transactionType}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setClientSuggestions(data.data.allClients);
+          setClientsWithAdvances(data.data.clientsWithAdvances);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching client suggestions:", error);
+    }
+  };
+
+  // Handle client selection from autocomplete
+  const handleClientSelect = (clientName: string): void => {
+    setFormData((prev) => ({ ...prev, clientName }));
+    setShowSuggestions(false);
+
+    // Check if this client has advance payment
+    const clientWithAdvance = clientsWithAdvances.find(
+      (c) => c._id === clientName
+    );
+
+    if (clientWithAdvance && clientWithAdvance.totalAdvance > 0) {
+      setSelectedClientAdvance(clientWithAdvance.totalAdvance);
+      setSuccess(
+        `Client has PKR ${clientWithAdvance.totalAdvance.toLocaleString()} advance payment available`
+      );
+    } else {
+      setSelectedClientAdvance(0);
+    }
+  };
+
+  const handleActionSelect = async (action: string): Promise<void> => {
     setSelectedAction(action);
     setShowForm(true);
     setError("");
     setSuccess("");
+
+    // Fetch client suggestions for autocomplete
+    await fetchClientSuggestions(action);
   };
 
   const closePopup = (): void => {
@@ -479,6 +541,11 @@ const Dashboard: React.FC = () => {
       remainingAmount: "",
       totalBalance: "",
     });
+    // Reset autocomplete state
+    setClientSuggestions([]);
+    setShowSuggestions(false);
+    setSelectedClientAdvance(0);
+    setClientsWithAdvances([]);
   };
 
   // Helper function to determine payment status
@@ -552,10 +619,18 @@ const Dashboard: React.FC = () => {
           : parseFloat(formData.rate) || 0;
       const calculatedTotal = weight * rate;
 
+      // Auto-apply advance payment if available
+      let remainingToPay = calculatedTotal;
+      if (selectedClientAdvance > 0) {
+        // Deduct advance from total
+        remainingToPay = Math.max(0, calculatedTotal - selectedClientAdvance);
+      }
+
       setFormData((prev) => ({
         ...prev,
         [field]: value,
         totalBalance: calculatedTotal.toFixed(2),
+        remainingAmount: remainingToPay.toFixed(2),
       }));
     }
   };
@@ -1024,7 +1099,7 @@ const Dashboard: React.FC = () => {
                     </div>
 
                     {/* Client/Supplier Name */}
-                    <div>
+                    <div className="relative">
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         {selectedAction === "sale"
                           ? "Client Name"
@@ -1034,8 +1109,12 @@ const Dashboard: React.FC = () => {
                       <input
                         type="text"
                         value={formData.clientName}
-                        onChange={(e) =>
-                          handleInputChange("clientName", e.target.value)
+                        onChange={(e) => {
+                          handleInputChange("clientName", e.target.value);
+                          setShowSuggestions(e.target.value.length > 0);
+                        }}
+                        onFocus={() =>
+                          setShowSuggestions(formData.clientName.length > 0)
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder={`Enter ${
@@ -1043,6 +1122,39 @@ const Dashboard: React.FC = () => {
                         } name`}
                         disabled={loading}
                       />
+
+                      {/* Autocomplete Dropdown */}
+                      {showSuggestions && clientSuggestions.length > 0 && (
+                        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                          {clientSuggestions
+                            .filter((name) =>
+                              name
+                                .toLowerCase()
+                                .includes(formData.clientName.toLowerCase())
+                            )
+                            .slice(0, 10)
+                            .map((name, index) => {
+                              const hasAdvance = clientsWithAdvances.find(
+                                (c) => c._id === name
+                              );
+                              return (
+                                <div
+                                  key={index}
+                                  onClick={() => handleClientSelect(name)}
+                                  className="px-4 py-2 hover:bg-blue-50 cursor-pointer flex justify-between items-center border-b border-gray-100 last:border-b-0"
+                                >
+                                  <span className="text-gray-900">{name}</span>
+                                  {hasAdvance && (
+                                    <span className="text-xs text-green-600 font-semibold">
+                                      Advance: PKR{" "}
+                                      {hasAdvance.totalAdvance.toLocaleString()}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                        </div>
+                      )}
                     </div>
 
                     {/* Weight */}

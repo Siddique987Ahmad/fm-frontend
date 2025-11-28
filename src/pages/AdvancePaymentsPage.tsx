@@ -134,7 +134,7 @@ const AdvancePaymentsPage: React.FC = () => {
 
     try {
       const apiUrl = getApiUrl();
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("userToken");
 
       const params = new URLSearchParams({
         page: pagination.currentPage.toString(),
@@ -201,8 +201,10 @@ const AdvancePaymentsPage: React.FC = () => {
     });
   };
 
-  const getOutstandingAmount = (transaction: Transaction) => {
-    return transaction.totalBalance - transaction.remainingAmount;
+  const getAdvanceAmount = (transaction: Transaction) => {
+    // For advance payments: remainingAmount > totalBalance
+    // Advance amount is the excess payment
+    return transaction.remainingAmount - transaction.totalBalance;
   };
 
   return (
@@ -309,14 +311,14 @@ const AdvancePaymentsPage: React.FC = () => {
               </p>
             </div>
 
-            <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-lg shadow-lg p-6 text-white">
+            <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg shadow-lg p-6 text-white">
               <h3 className="text-sm font-medium opacity-90">
-                Total Outstanding
+                Total Advance Amount
               </h3>
               <p className="text-3xl font-bold mt-2">
                 {formatCurrency(summary.totalOutstanding)}
               </p>
-              <p className="text-sm opacity-75 mt-1">Remaining balance</p>
+              <p className="text-sm opacity-75 mt-1">Total excess payments</p>
             </div>
           </div>
 
@@ -355,10 +357,10 @@ const AdvancePaymentsPage: React.FC = () => {
                         Total Amount
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Advance Paid
+                        Amount Paid
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Outstanding
+                        Advance Amount
                       </th>
                     </tr>
                   </thead>
@@ -393,8 +395,8 @@ const AdvancePaymentsPage: React.FC = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">
                           {formatCurrency(transaction.remainingAmount)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-red-600">
-                          {formatCurrency(getOutstandingAmount(transaction))}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">
+                          {formatCurrency(getAdvanceAmount(transaction))}
                         </td>
                       </tr>
                     ))}

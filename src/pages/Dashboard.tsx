@@ -491,6 +491,8 @@ const Dashboard: React.FC = () => {
           setClientSuggestions(data.data.allClients);
           setClientsWithAdvances(data.data.clientsWithAdvances);
         }
+      } else {
+        console.error("Error response:", response.status);
       }
     } catch (error) {
       console.error("Error fetching client suggestions:", error);
@@ -620,17 +622,40 @@ const Dashboard: React.FC = () => {
       const calculatedTotal = weight * rate;
 
       // Auto-apply advance payment if available
-      let remainingToPay = calculatedTotal;
+      let amountReceived = 0;
+
       if (selectedClientAdvance > 0) {
-        // Deduct advance from total
-        remainingToPay = Math.max(0, calculatedTotal - selectedClientAdvance);
+        // Case 1: Advance is greater than or equal to total
+        // Customer/Supplier has already paid enough to cover this transaction
+        if (selectedClientAdvance >= calculatedTotal) {
+          amountReceived = calculatedTotal;
+          setSuccess(
+            `Full payment covered by advance! Remaining advance: PKR ${(
+              selectedClientAdvance - calculatedTotal
+            ).toFixed(2)}`
+          );
+        }
+        // Case 2: Advance is less than total
+        // Customer/Supplier needs to pay the difference
+        else {
+          amountReceived = selectedClientAdvance;
+          const stillOwes = calculatedTotal - selectedClientAdvance;
+          setSuccess(
+            `Advance of PKR ${selectedClientAdvance.toFixed(
+              2
+            )} applied. Customer still owes: PKR ${stillOwes.toFixed(2)}`
+          );
+        }
+      } else {
+        // No advance - customer pays full amount
+        amountReceived = 0;
       }
 
       setFormData((prev) => ({
         ...prev,
         [field]: value,
         totalBalance: calculatedTotal.toFixed(2),
-        remainingAmount: remainingToPay.toFixed(2),
+        remainingAmount: amountReceived.toFixed(2),
       }));
     }
   };
@@ -708,6 +733,57 @@ const Dashboard: React.FC = () => {
       });
 
       if (result.success) {
+        // If advance was used, create an offsetting transaction to reduce the advance
+        if (
+          selectedClientAdvance > 0 &&
+          parseFloat(formData.remainingAmount) > 0
+        ) {
+          const advanceUsed = parseFloat(formData.remainingAmount);
+
+          console.log(
+            "🔍 [Offset Transaction] Creating offset for advance usage:",
+            {
+              client: formData.clientName,
+              advanceUsed,
+              selectedClientAdvance,
+            }
+          );
+
+          try {
+            // Create offsetting transaction to reduce advance
+            // Logic: Advance = remainingAmount > totalBalance (overpayment)
+            // To reduce advance, create transaction where remainingAmount < totalBalance
+            // This creates a "debt" that offsets the previous "overpayment"
+            const offsetPayload = {
+              transactionType: selectedAction,
+              clientName: formData.clientName.trim(),
+              weight: 1, // 1 kg for record-keeping (backend requires weight > 0)
+              weightUnit: "kg",
+              rate: advanceUsed, // Rate = advance used (since weight = 1)
+              rateUnit: "per_kg",
+              remainingAmount: 0, // Customer didn't pay anything (using their advance)
+              totalBalance: advanceUsed, // The amount of advance being used
+              isInternalTransaction: true, // Mark as internal to hide from main view
+              notes: `Advance payment deduction for transaction on ${new Date().toLocaleDateString()}`,
+            };
+
+            console.log("🔍 [Offset Transaction] Payload:", offsetPayload);
+
+            const offsetResult = await authenticatedFetch(
+              `/products/${selectedProduct.productType}`,
+              {
+                method: "POST",
+                body: JSON.stringify(offsetPayload),
+              }
+            );
+
+            console.log("🔍 [Offset Transaction] Result:", offsetResult);
+          } catch (offsetError) {
+            console.error("❌ Error creating offset transaction:", offsetError);
+            // Don't fail the main transaction if offset fails
+          }
+        }
+
         setSuccess(
           `${selectedProduct.name} ${selectedAction} transaction created successfully!`
         );

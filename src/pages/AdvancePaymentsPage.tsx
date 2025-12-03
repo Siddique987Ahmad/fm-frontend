@@ -16,6 +16,7 @@ interface Transaction {
   totalBalance: number;
   paymentStatus: "pending" | "full" | "advance" | "overpaid";
   advanceAmount: number;
+  netAdvance?: number; // Net advance calculated by backend
   status: "pending" | "completed" | "cancelled";
   notes?: string;
   createdAt: string;
@@ -202,9 +203,22 @@ const AdvancePaymentsPage: React.FC = () => {
   };
 
   const getAdvanceAmount = (transaction: Transaction) => {
-    // For advance payments: remainingAmount > totalBalance
-    // Advance amount is the excess payment
-    return transaction.remainingAmount - transaction.totalBalance;
+    // Debug: Log transaction data to see if netAdvance is present
+    console.log(
+      `[AdvancePayments] Transaction for ${transaction.clientName}:`,
+      {
+        netAdvance: transaction.netAdvance,
+        remaining: transaction.remainingAmount,
+        total: transaction.totalBalance,
+        calculated: transaction.remainingAmount - transaction.totalBalance,
+      }
+    );
+
+    // Use netAdvance from backend if available (accounts for offsetting transactions)
+    // Otherwise calculate from individual transaction
+    return transaction.netAdvance !== undefined
+      ? transaction.netAdvance
+      : transaction.remainingAmount - transaction.totalBalance;
   };
 
   return (

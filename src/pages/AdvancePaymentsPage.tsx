@@ -138,8 +138,8 @@ const AdvancePaymentsPage: React.FC = () => {
       const token = localStorage.getItem("userToken");
 
       const params = new URLSearchParams({
-        page: pagination.currentPage.toString(),
-        limit: pagination.itemsPerPage.toString(),
+        page: (pagination?.currentPage || 1).toString(),
+        limit: (pagination?.itemsPerPage || 50).toString(),
       });
 
       if (filters.transactionType !== "all") {

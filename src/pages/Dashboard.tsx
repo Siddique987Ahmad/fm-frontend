@@ -473,37 +473,21 @@ const Dashboard: React.FC = () => {
     if (!selectedProduct) return;
 
     try {
-      const token = localStorage.getItem("userToken");
+      const { authenticatedFetch } = await import("../utils/apiClient");
 
-      const response = await fetch(
-        `${API_BASE_URL}/products/${selectedProduct.productType}/clients?transactionType=${transactionType}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
+      const data = await authenticatedFetch<{
+        success: boolean;
+        data?: {
+          allClients: string[];
+          clientsWithAdvances: Array<{ _id: string; totalAdvance: number }>;
+        };
+      }>(
+        `/products/${selectedProduct.productType}/clients?transactionType=${transactionType}`
       );
 
-      if (response.ok) {
-        // Check content type before parsing JSON
-        const contentType = response.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-          const text = await response.text();
-          console.error(
-            "Non-JSON response from clients endpoint:",
-            text.substring(0, 100)
-          );
-          return;
-        }
-
-        const data = await response.json();
-        if (data.success) {
-          setClientSuggestions(data.data.allClients);
-          setClientsWithAdvances(data.data.clientsWithAdvances);
-        }
-      } else {
-        console.error("Error response:", response.status);
+      if (data.success && data.data) {
+        setClientSuggestions(data.data.allClients);
+        setClientsWithAdvances(data.data.clientsWithAdvances);
       }
     } catch (error) {
       console.error("Error fetching client suggestions:", error);

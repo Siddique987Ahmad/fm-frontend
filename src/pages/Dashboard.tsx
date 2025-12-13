@@ -271,10 +271,11 @@ const Dashboard: React.FC = () => {
       "bg-pink-500 hover:bg-pink-600",
     ];
 
-    const dynamicBoxes = productTypes.map((productType, index) => ({
+    const dynamicBoxes: Product[] = productTypes.map((productType, index) => ({
       name: productType.name,
       color: colors[index % colors.length],
       productType: productType.value,
+      enableNugCalculation: productType.enableNugCalculation,
     }));
 
     // Add expenses box
@@ -283,7 +284,7 @@ const Dashboard: React.FC = () => {
       color: "bg-orange-500 hover:bg-orange-600",
       productType: "expenses",
       isExpense: true,
-    } as Product);
+    });
 
     return dynamicBoxes;
   };
@@ -1249,11 +1250,11 @@ const Dashboard: React.FC = () => {
                   // Form
                   <div className="space-y-4">
                     <div className="mb-4">
-                      <h3 className="text-lg font-semibold text-gray-800 capitalize mb-4">
-                        {selectedProduct.name} {selectedAction} Form
+                      <h3 className="text-xl font-bold text-gray-900 mb-6">
+                        {selectedProduct.name}{" "}
+                        {selectedAction === "sale" ? "Sale" : "Purchase"} Form
                       </h3>
                     </div>
-
                     {/* Client/Supplier Name */}
                     <div className="relative">
                       <label className="block text-sm font-medium text-gray-700 mb-1">

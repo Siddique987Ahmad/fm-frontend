@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { clearProductTypesCache } from "../utils/productTypes";
+import { getApiUrl } from "../utils/apiClient";
 
 interface ProductCatalogItem {
   _id: string;
@@ -108,7 +108,6 @@ const ProductManagement: React.FC = () => {
           allowedTransactions: ["sale", "purchase"],
           enableNugCalculation: false,
         });
-        clearProductTypesCache(); // Clear cache so new product appears
         fetchProducts(); // Refresh list
       } else {
         setError(data.message || "Failed to add product.");
@@ -174,7 +173,6 @@ const ProductManagement: React.FC = () => {
       if (data.success) {
         alert("Product updated successfully!");
         setEditingProduct(null);
-        clearProductTypesCache(); // Clear cache so updated product appears
         fetchProducts(); // Refresh list
       } else {
         setError(data.message || "Failed to update product.");
@@ -206,7 +204,6 @@ const ProductManagement: React.FC = () => {
 
       if (data.success) {
         alert("Product deleted successfully!");
-        clearProductTypesCache(); // Clear cache so deleted product is removed
         fetchProducts(); // Refresh list
       } else {
         setError(data.message || "Failed to delete product.");

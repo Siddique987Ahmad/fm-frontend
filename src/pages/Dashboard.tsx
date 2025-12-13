@@ -9,6 +9,7 @@ interface Product {
   color: string;
   productType: string;
   isExpense?: boolean;
+  enableNugCalculation?: boolean;
 }
 
 interface FormData {
@@ -17,6 +18,13 @@ interface FormData {
   rate: string;
   remainingAmount: string;
   totalBalance: string;
+}
+
+interface NugEntry {
+  containers: string;
+  tareWeightPerContainer: string;
+  grossWeight: string;
+  netWeight: number;
 }
 
 interface DashboardStats {
@@ -149,6 +157,8 @@ const Dashboard: React.FC = () => {
     remainingAmount: "",
     totalBalance: "",
   });
+  const [useNugCalculation, setUseNugCalculation] = useState<boolean>(false);
+  const [nugEntries, setNugEntries] = useState<NugEntry[]>([]);
 
   // State for dashboard statistics
   const [stats, setStats] = useState<DashboardStats>({
@@ -538,6 +548,8 @@ const Dashboard: React.FC = () => {
       remainingAmount: "",
       totalBalance: "",
     });
+    setUseNugCalculation(false);
+    setNugEntries([]);
     // Reset autocomplete state
     setClientSuggestions([]);
     setShowSuggestions(false);
@@ -596,6 +608,75 @@ const Dashboard: React.FC = () => {
         };
       }
     }
+  };
+
+  // Calculate total net weight from Nug entries
+  useEffect(() => {
+    if (useNugCalculation) {
+      const totalNet = nugEntries.reduce(
+        (sum, entry) => sum + (entry.netWeight || 0),
+        0
+      );
+      // Only update if the value is different to avoid infinite loops
+      if (parseFloat(formData.weight) !== totalNet) {
+        setFormData((prev) => ({
+          ...prev,
+          weight: totalNet > 0 ? totalNet.toString() : "",
+        }));
+      }
+    }
+  }, [nugEntries, useNugCalculation]);
+
+  const addNugEntry = () => {
+    setNugEntries([
+      ...nugEntries,
+      {
+        containers: "",
+        tareWeightPerContainer: "",
+        grossWeight: "",
+        netWeight: 0,
+      },
+    ]);
+  };
+
+  const removeNugEntry = (index: number) => {
+    const newEntries = [...nugEntries];
+    newEntries.splice(index, 1);
+    setNugEntries(newEntries);
+  };
+
+  const updateNugEntry = (
+    index: number,
+    field: keyof NugEntry,
+    value: string
+  ) => {
+    const newEntries = [...nugEntries];
+    const entry = { ...newEntries[index], [field]: value };
+
+    // Auto-calculate net weight
+    if (
+      field === "containers" ||
+      field === "tareWeightPerContainer" ||
+      field === "grossWeight"
+    ) {
+      const containers =
+        parseFloat(field === "containers" ? value : entry.containers) || 0;
+      const tare =
+        parseFloat(
+          field === "tareWeightPerContainer"
+            ? value
+            : entry.tareWeightPerContainer
+        ) || 0;
+      const gross =
+        parseFloat(field === "grossWeight" ? value : entry.grossWeight) || 0;
+
+      const totalTare = containers * tare;
+      // Net weight = Gross - (Containers * Tare per container)
+      entry.netWeight = Math.max(0, gross - totalTare);
+    }
+
+    newEntries[index] = entry;
+    setNugEntries(newEntries);
   };
 
   const handleInputChange = (field: keyof FormData, value: string): void => {
@@ -713,6 +794,8 @@ const Dashboard: React.FC = () => {
         rateUnit: "per_kg",
         remainingAmount: parseFloat(formData.remainingAmount),
         totalBalance: parseFloat(formData.totalBalance),
+        useNugCalculation,
+        nugEntries: useNugCalculation ? nugEntries : [],
       };
 
       // Use the new generic API endpoint
@@ -823,6 +906,8 @@ const Dashboard: React.FC = () => {
     setSelectedAction("");
     setError("");
     setSuccess("");
+    setUseNugCalculation(false);
+    setNugEntries([]);
   };
 
   const handleTransactionsClick = (): void => {
@@ -1228,6 +1313,125 @@ const Dashboard: React.FC = () => {
                       )}
                     </div>
 
+                    {/* Nug Calculation Section */}
+                    {selectedProduct?.enableNugCalculation && (
+                      <div className="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <label className="flex items-center mb-3">
+                          <input
+                            type="checkbox"
+                            checked={useNugCalculation}
+                            onChange={(e) =>
+                              setUseNugCalculation(e.target.checked)
+                            }
+                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                          />
+                          <span className="ml-2 text-sm font-medium text-gray-700">
+                            Use Nug Calculation
+                          </span>
+                        </label>
+
+                        {useNugCalculation && (
+                          <div className="space-y-3">
+                            {nugEntries.map((entry, index) => (
+                              <div
+                                key={index}
+                                className="flex gap-2 items-end bg-white p-2 rounded border border-gray-200"
+                              >
+                                <div className="flex-1">
+                                  <label className="block text-xs text-gray-500 mb-1">
+                                    Containers
+                                  </label>
+                                  <input
+                                    type="number"
+                                    value={entry.containers}
+                                    onChange={(e) =>
+                                      updateNugEntry(
+                                        index,
+                                        "containers",
+                                        e.target.value
+                                      )
+                                    }
+                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                                    placeholder="Qty"
+                                  />
+                                </div>
+                                <div className="flex-1">
+                                  <label className="block text-xs text-gray-500 mb-1">
+                                    Tare (kg)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    step="0.001"
+                                    value={entry.tareWeightPerContainer}
+                                    onChange={(e) =>
+                                      updateNugEntry(
+                                        index,
+                                        "tareWeightPerContainer",
+                                        e.target.value
+                                      )
+                                    }
+                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                                    placeholder="Tare"
+                                  />
+                                </div>
+                                <div className="flex-1">
+                                  <label className="block text-xs text-gray-500 mb-1">
+                                    Gross (kg)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={entry.grossWeight}
+                                    onChange={(e) =>
+                                      updateNugEntry(
+                                        index,
+                                        "grossWeight",
+                                        e.target.value
+                                      )
+                                    }
+                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                                    placeholder="Gross"
+                                  />
+                                </div>
+                                <div className="flex-1">
+                                  <label className="block text-xs text-gray-500 mb-1">
+                                    Net (kg)
+                                  </label>
+                                  <div className="w-full px-2 py-1 text-sm bg-gray-100 border border-gray-300 rounded text-right font-medium">
+                                    {entry.netWeight?.toFixed(2) || "0.00"}
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => removeNugEntry(index)}
+                                  className="p-1 text-red-600 hover:bg-red-50 rounded"
+                                  title="Remove Entry"
+                                >
+                                  <CloseIcon />
+                                </button>
+                              </div>
+                            ))}
+
+                            <div className="flex justify-between items-center mt-2">
+                              <button
+                                type="button"
+                                onClick={addNugEntry}
+                                className="text-sm text-indigo-600 hover:text-indigo-800 font-medium flex items-center"
+                              >
+                                + Add Nug Entry
+                              </button>
+                              <div className="text-sm font-medium text-gray-700">
+                                Total Net Weight:{" "}
+                                <span className="text-indigo-600 text-lg">
+                                  {formData.weight || "0"} kg
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Weight */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1240,9 +1444,14 @@ const Dashboard: React.FC = () => {
                         onChange={(e) =>
                           handleInputChange("weight", e.target.value)
                         }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                          useNugCalculation
+                            ? "bg-gray-100 cursor-not-allowed"
+                            : ""
+                        }`}
                         placeholder="Enter weight in kg"
-                        disabled={loading}
+                        disabled={loading || useNugCalculation}
+                        readOnly={useNugCalculation}
                       />
                     </div>
 

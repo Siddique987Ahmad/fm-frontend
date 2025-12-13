@@ -6,6 +6,7 @@ export interface ProductType {
   name: string;
   value: string;
   allowedTransactions?: ('sale' | 'purchase')[];
+  enableNugCalculation?: boolean;
 }
 
 // Cache for product types to avoid repeated API calls

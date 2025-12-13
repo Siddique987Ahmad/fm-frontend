@@ -311,6 +311,16 @@ const Dashboard: React.FC = () => {
   const fetchProductTypesData = async (): Promise<void> => {
     try {
       const types = await fetchProductTypes();
+      console.log("🔥 RAW API RESPONSE (fetchProductTypes):", types);
+
+      // Check specifically for Seeds
+      const seeds = types.find((t) => t.name === "Seeds");
+      console.log("🌱 Seeds data:", seeds);
+      console.log(
+        "🌱 Seeds enableNugCalculation:",
+        seeds?.enableNugCalculation
+      );
+
       setProductTypes(types);
     } catch (error) {
       console.error("Error fetching product types:", error);

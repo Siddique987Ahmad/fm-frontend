@@ -196,10 +196,8 @@ const Dashboard: React.FC = () => {
         setUser(userData);
 
         // Get API URL - handle relative paths
-        const apiUrl =
-          API_BASE_URL && !API_BASE_URL.startsWith("/")
-            ? API_BASE_URL
-            : "https://fm-backend-six.vercel.app/api";
+        const { getApiUrl } = await import("../utils/apiClient");
+        const apiUrl = getApiUrl();
 
         // Verify token with server
         const response = await fetch(`${apiUrl}/admin/auth/me`, {

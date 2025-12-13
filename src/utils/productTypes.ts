@@ -9,26 +9,13 @@ export interface ProductType {
   enableNugCalculation?: boolean;
 }
 
-// Cache for product types to avoid repeated API calls
-let productTypesCache: ProductType[] | null = null;
-let cacheTimestamp: number = 0;
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-
 export const fetchProductTypes = async (): Promise<ProductType[]> => {
-  // Check if cache is still valid
-  const now = Date.now();
-  if (productTypesCache && (now - cacheTimestamp) < CACHE_DURATION) {
-    return productTypesCache;
-  }
-
   try {
     // Use authenticatedFetch to ensure auth token is included
     const { authenticatedFetch } = await import('./apiClient');
     const data = await authenticatedFetch<{ success: boolean; data?: ProductType[]; message?: string }>(`/products/types`);
 
     if (data.success && data.data) {
-      productTypesCache = data.data;
-      cacheTimestamp = now;
       return data.data;
     } else {
       throw new Error(data.message || 'Failed to fetch product types');
@@ -55,9 +42,5 @@ export const fetchProductTypes = async (): Promise<ProductType[]> => {
   }
 };
 
-// Clear cache when needed (e.g., after admin adds new products)
-export const clearProductTypesCache = () => {
-  productTypesCache = null;
-  cacheTimestamp = 0;
-};
+
 

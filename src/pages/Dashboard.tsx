@@ -294,6 +294,13 @@ const Dashboard: React.FC = () => {
     fetchProductTypesData();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Debug log for product types
+  useEffect(() => {
+    if (productTypes.length > 0) {
+      console.log("📦 Loaded Product Types:", productTypes);
+    }
+  }, [productTypes]);
+
   // Fetch stats when productTypes are loaded
   useEffect(() => {
     if (productTypes.length > 0) {

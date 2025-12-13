@@ -309,16 +309,6 @@ const Dashboard: React.FC = () => {
   const fetchProductTypesData = async (): Promise<void> => {
     try {
       const types = await fetchProductTypes();
-      console.log("🔥 RAW API RESPONSE (fetchProductTypes):", types);
-
-      // Check specifically for Seeds
-      const seeds = types.find((t) => t.name === "Seeds");
-      console.log("🌱 Seeds data:", seeds);
-      console.log(
-        "🌱 Seeds enableNugCalculation:",
-        seeds?.enableNugCalculation
-      );
-
       setProductTypes(types);
     } catch (error) {
       console.error("Error fetching product types:", error);
@@ -655,6 +645,14 @@ const Dashboard: React.FC = () => {
     ]);
   };
 
+  interface NugEntry {
+    containers: string; // This will now represent "Nugs" count
+    bagsPerNug?: string; // New field for Bags per Nug (default 306)
+    tareWeightPerContainer: string; // This represents Tare per Bag (default 0.250)
+    grossWeight: string; // Calculated: Nugs * Bags/Nug
+    netWeight: number; // Calculated: Gross - (Gross * Tare/Bag)
+  }
+
   const removeNugEntry = (index: number) => {
     const newEntries = [...nugEntries];
     newEntries.splice(index, 1);
@@ -667,31 +665,33 @@ const Dashboard: React.FC = () => {
     value: string
   ) => {
     const newEntries = [...nugEntries];
-    const entry = { ...newEntries[index], [field]: value };
+    newEntries[index] = {
+      ...newEntries[index],
+      [field]: value,
+    };
 
-    // Auto-calculate net weight
-    if (
-      field === "containers" ||
-      field === "tareWeightPerContainer" ||
-      field === "grossWeight"
-    ) {
-      const containers =
-        parseFloat(field === "containers" ? value : entry.containers) || 0;
-      const tare =
-        parseFloat(
-          field === "tareWeightPerContainer"
-            ? value
-            : entry.tareWeightPerContainer
-        ) || 0;
-      const gross =
-        parseFloat(field === "grossWeight" ? value : entry.grossWeight) || 0;
+    // Auto-calculate logic
+    const entry = newEntries[index];
+    const nugs = parseFloat(entry.containers) || 0;
+    const bagsPerNug = parseFloat(entry.bagsPerNug || "306"); // Default 306
+    const tarePerBag = parseFloat(entry.tareWeightPerContainer || "0.250"); // Default 0.250
 
-      const totalTare = containers * tare;
-      // Net weight = Gross - (Containers * Tare per container)
-      entry.netWeight = Math.max(0, gross - totalTare);
+    if (nugs > 0) {
+      const totalBags = nugs * bagsPerNug; // Answer 1
+      const totalTare = totalBags * tarePerBag; // Answer 2
+      const netWeight = totalBags - totalTare; // Final Answer
+
+      // We store "Total Bags" in grossWeight field for backend compatibility
+      // containers = Nugs
+      // tareWeightPerContainer = Tare/Bag
+      // grossWeight = Total Bags
+
+      entry.grossWeight = totalBags.toString();
+      entry.netWeight = netWeight > 0 ? netWeight : 0;
+    } else {
+      entry.netWeight = 0;
     }
 
-    newEntries[index] = entry;
     setNugEntries(newEntries);
   };
 
@@ -1175,7 +1175,7 @@ const Dashboard: React.FC = () => {
         {/* Popup Modal */}
         {isPopupOpen && selectedProduct && !selectedProduct.isExpense && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-2xl w-full max-w-md">
+            <div className="bg-white rounded-lg shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b">
                 <h2 className="text-2xl font-bold text-gray-800">
@@ -1355,11 +1355,11 @@ const Dashboard: React.FC = () => {
                               >
                                 <div className="flex-1">
                                   <label className="block text-xs text-gray-500 mb-1">
-                                    Containers
+                                    Nugs
                                   </label>
                                   <input
                                     type="number"
-                                    value={entry.containers}
+                                    value={entry.containers} // Using containers field for Nugs
                                     onChange={(e) =>
                                       updateNugEntry(
                                         index,
@@ -1373,7 +1373,18 @@ const Dashboard: React.FC = () => {
                                 </div>
                                 <div className="flex-1">
                                   <label className="block text-xs text-gray-500 mb-1">
-                                    Tare (kg)
+                                    Total Bags
+                                  </label>
+                                  <input
+                                    type="number"
+                                    value={entry.grossWeight} // grossWeight stores Total Bags (Answer1)
+                                    readOnly
+                                    className="w-full px-2 py-1 text-sm bg-gray-100 border border-gray-300 rounded"
+                                  />
+                                </div>
+                                {/* <div className="flex-1">
+                                  <label className="block text-xs text-gray-500 mb-1">
+                                    Tare/Bag (kg)
                                   </label>
                                   <input
                                     type="number"
@@ -1387,36 +1398,20 @@ const Dashboard: React.FC = () => {
                                       )
                                     }
                                     className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
-                                    placeholder="Tare"
+                                    placeholder="0.250"
                                   />
-                                </div>
-                                <div className="flex-1">
-                                  <label className="block text-xs text-gray-500 mb-1">
-                                    Gross (kg)
-                                  </label>
-                                  <input
-                                    type="number"
-                                    step="0.01"
-                                    value={entry.grossWeight}
-                                    onChange={(e) =>
-                                      updateNugEntry(
-                                        index,
-                                        "grossWeight",
-                                        e.target.value
-                                      )
-                                    }
-                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
-                                    placeholder="Gross"
-                                  />
-                                </div>
+                                </div> */}
                                 <div className="flex-1">
                                   <label className="block text-xs text-gray-500 mb-1">
                                     Net (kg)
                                   </label>
-                                  <div className="w-full px-2 py-1 text-sm bg-gray-100 border border-gray-300 rounded text-right font-medium">
-                                    {entry.netWeight?.toFixed(2) || "0.00"}
-                                  </div>
-                                </div>
+                                  <input
+                                    type="number"
+                                    value={entry.netWeight?.toFixed(2) || ""}
+                                    readOnly
+                                    className="w-full px-2 py-1 text-sm bg-gray-100 border border-gray-300 rounded text-right font-medium"
+                                  />
+                                </div>{" "}
                                 <button
                                   type="button"
                                   onClick={() => removeNugEntry(index)}

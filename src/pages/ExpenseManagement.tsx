@@ -350,8 +350,8 @@ const ExpenseManagement: React.FC = () => {
       color: "bg-green-500 hover:bg-green-600",
       icon: UserGroupIcon,
       showTitle: true,
-      showVendor: true,
-      showNotes: true,
+      showVendor: false,
+      showNotes: false,
       showAmountPaid: false,
       fields: [
         {

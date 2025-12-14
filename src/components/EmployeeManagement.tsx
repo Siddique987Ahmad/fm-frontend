@@ -351,11 +351,15 @@ const EmployeeManagement: React.FC = () => {
 
   // Format date
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+    return isNaN(date.getTime())
+      ? "-"
+      : date.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
   };
 
   // Get status color
@@ -616,20 +620,20 @@ const EmployeeManagement: React.FC = () => {
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">
-                            {employee.fullName}
+                            {employee.fullName || "Unknown Employee"}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {employee.employeeId}
+                            {employee.employeeId || "-"}
                           </div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {employee.department}
+                        {employee.department || "-"}
                       </div>
                       <div className="text-sm text-gray-500">
-                        {employee.position}
+                        {employee.position || "-"}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

@@ -635,19 +635,19 @@ const EmployeeManagement: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
                         className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getTypeColor(
-                          employee.employeeType
+                          employee.employeeType || ""
                         )}`}
                       >
-                        {employee.employeeType.replace("-", " ")}
+                        {(employee.employeeType || "").replace("-", " ")}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
                         className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
-                          employee.status
+                          employee.status || ""
                         )}`}
                       >
-                        {employee.status}
+                        {employee.status || "Unknown"}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

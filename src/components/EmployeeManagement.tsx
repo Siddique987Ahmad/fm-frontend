@@ -229,8 +229,23 @@ const EmployeeManagement: React.FC = () => {
   // Handle toggle status
   const handleToggleStatus = async (id: string) => {
     try {
+      // Optimistic update
+      setEmployees((prev) =>
+        prev.map((emp) => {
+          if (emp._id === id) {
+            const newIsActive = !emp.isActive;
+            return {
+              ...emp,
+              isActive: newIsActive,
+              status: newIsActive ? "active" : "inactive",
+            };
+          }
+          return emp;
+        })
+      );
+
       const { authenticatedFetch } = await import("../utils/apiClient");
-      const result = await authenticatedFetch<{ success: boolean }>(
+      const result = await authenticatedFetch<{ success: boolean; data?: any }>(
         `/admin/employees/${id}/toggle-status`,
         {
           method: "PATCH",
@@ -238,12 +253,21 @@ const EmployeeManagement: React.FC = () => {
       );
 
       if (result.success) {
-        fetchEmployees();
+        // If backend returns data, update with authoritative data
+        if (result.data) {
+          setEmployees((prev) =>
+            prev.map((emp) => (emp._id === id ? result.data : emp))
+          );
+        }
         fetchStats();
+      } else {
+        // Revert on failure (fetch original state)
+        fetchEmployees();
       }
     } catch (err) {
       console.error("Error toggling employee status:", err);
       setError("Failed to toggle employee status");
+      fetchEmployees(); // Revert
     }
   };
 

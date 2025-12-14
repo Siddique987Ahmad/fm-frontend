@@ -498,7 +498,7 @@ const Dashboard: React.FC = () => {
           clientsWithAdvances: Array<{ _id: string; totalAdvance: number }>;
         };
       }>(
-        `/products/${selectedProduct.productType}/clients?transactionType=${transactionType}`
+        `/products/${selectedProduct.productType}/clients?transactionType=${transactionType}&global=true`
       );
 
       if (data.success && data.data) {

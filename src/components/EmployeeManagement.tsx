@@ -609,8 +609,8 @@ const EmployeeManagement: React.FC = () => {
                         <div className="flex-shrink-0 h-10 w-10">
                           <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
                             <span className="text-white font-semibold text-sm">
-                              {employee.firstName.charAt(0)}
-                              {employee.lastName.charAt(0)}
+                              {employee.firstName?.charAt(0) || ""}
+                              {employee.lastName?.charAt(0) || ""}
                             </span>
                           </div>
                         </div>

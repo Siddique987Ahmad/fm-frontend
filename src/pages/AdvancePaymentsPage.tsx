@@ -151,7 +151,7 @@ const AdvancePaymentsPage: React.FC = () => {
       }
 
       const response = await fetch(
-        `${apiUrl}/products/${selectedProduct.value}/advances?${params}`,
+        `${apiUrl}/products/${selectedProduct.value}/advances?${params}&global=true`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -362,6 +362,9 @@ const AdvancePaymentsPage: React.FC = () => {
                         Client/Supplier
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Product
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Type
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -386,6 +389,12 @@ const AdvancePaymentsPage: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           {transaction.clientName}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">
+                          {(transaction as any).productType?.replace(
+                            "-",
+                            " "
+                          ) || "-"}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span

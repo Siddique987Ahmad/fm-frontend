@@ -595,11 +595,8 @@ const AdvancePaymentsPage: React.FC = () => {
                             {isAdvance ? "+" : ""}
                             {formatCurrency(netChange)}
                             <div className="text-xs font-normal text-gray-500 mt-1">
-                              {isAdvance
-                                ? "Advance Added"
-                                : `Pending: ${formatCurrency(
-                                    Math.abs(netChange)
-                                  )}`}
+                              Balance:{" "}
+                              {formatCurrency(transaction.runningBalance)}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">

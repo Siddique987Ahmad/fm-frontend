@@ -205,6 +205,7 @@ const EmployeeManagement: React.FC = () => {
 
   // Handle delete
   const handleDelete = async (id: string) => {
+    if (!id) return;
     if (window.confirm("Are you sure you want to delete this employee?")) {
       try {
         const { authenticatedFetch } = await import("../utils/apiClient");
@@ -228,6 +229,7 @@ const EmployeeManagement: React.FC = () => {
 
   // Handle toggle status
   const handleToggleStatus = async (id: string) => {
+    if (!id) return;
     try {
       // Optimistic update
       setEmployees((prev) =>
@@ -662,14 +664,24 @@ const EmployeeManagement: React.FC = () => {
                         <button
                           onClick={() => openModal("view", employee)}
                           className="text-blue-600 hover:text-blue-900"
+                          disabled={!employee._id}
                         >
-                          <Eye className="h-4 w-4" />
+                          <Eye
+                            className={`h-4 w-4 ${
+                              !employee._id ? "opacity-50" : ""
+                            }`}
+                          />
                         </button>
                         <button
                           onClick={() => openModal("edit", employee)}
                           className="text-indigo-600 hover:text-indigo-900"
+                          disabled={!employee._id}
                         >
-                          <Edit className="h-4 w-4" />
+                          <Edit
+                            className={`h-4 w-4 ${
+                              !employee._id ? "opacity-50" : ""
+                            }`}
+                          />
                         </button>
                         <button
                           onClick={() => handleToggleStatus(employee._id)}
@@ -678,18 +690,32 @@ const EmployeeManagement: React.FC = () => {
                               ? "text-red-600 hover:text-red-900"
                               : "text-green-600 hover:text-green-900"
                           }
+                          disabled={!employee._id}
                         >
                           {employee.isActive ? (
-                            <UserX className="h-4 w-4" />
+                            <UserX
+                              className={`h-4 w-4 ${
+                                !employee._id ? "opacity-50" : ""
+                              }`}
+                            />
                           ) : (
-                            <UserCheck className="h-4 w-4" />
+                            <UserCheck
+                              className={`h-4 w-4 ${
+                                !employee._id ? "opacity-50" : ""
+                              }`}
+                            />
                           )}
                         </button>
                         <button
                           onClick={() => handleDelete(employee._id)}
                           className="text-red-600 hover:text-red-900"
+                          disabled={!employee._id}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2
+                            className={`h-4 w-4 ${
+                              !employee._id ? "opacity-50" : ""
+                            }`}
+                          />
                         </button>
                       </div>
                     </td>

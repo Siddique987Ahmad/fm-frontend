@@ -151,6 +151,19 @@ const ReportsDashboard: React.FC = () => {
       setError('');
       setSuccess('');
 
+      // Validate filters
+      if (!reportFilters.startDate || !reportFilters.endDate) {
+        setError('Please select start date and end date');
+        setLoading(false);
+        return;
+      }
+
+      if (activeTab === 'products' && !reportFilters.productType) {
+        setError('Please select a product type');
+        setLoading(false);
+        return;
+      }
+
       const params = new URLSearchParams();
       Object.entries(reportFilters).forEach(([key, value]) => {
         if (value) params.append(key, value);
@@ -174,12 +187,16 @@ const ReportsDashboard: React.FC = () => {
 
       if (format === 'download') {
         // Download PDF as blob with auth header
+        console.log('Fetching PDF from:', url);
         const response = await fetch(url, {
           headers: token ? { 'Authorization': `Bearer ${token}` } : undefined
         });
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers.get('content-type'));
         if (!response.ok) {
           const text = await response.text();
-          throw new Error(`Failed to generate PDF (HTTP ${response.status}). ${text?.slice(0,120)}`);
+          console.error('Error response:', text);
+          throw new Error(`Failed to generate PDF (HTTP ${response.status}). ${text?.slice(0,200)}`);
         }
         const blob = await response.blob();
         const downloadUrl = window.URL.createObjectURL(blob);
@@ -191,7 +208,10 @@ const ReportsDashboard: React.FC = () => {
         a.click();
         window.URL.revokeObjectURL(downloadUrl);
         document.body.removeChild(a);
-        setSuccess('Report downloaded');
+        setSuccess('PDF report downloaded successfully!');
+        
+        // Auto-clear success message after 3 seconds
+        setTimeout(() => setSuccess(''), 3000);
       } else {
         // Save to server; expect JSON
         const response = await fetch(url, {
@@ -209,9 +229,9 @@ const ReportsDashboard: React.FC = () => {
           setError(result.message || 'Failed to save report');
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error generating report:', error);
-      setError('Failed to generate report');
+      setError(error?.message || 'Failed to generate report');
     } finally {
       setLoading(false);
     }
@@ -327,16 +347,42 @@ const ReportsDashboard: React.FC = () => {
           <p className="text-gray-600">Generate PDF reports and manage records in bulk</p>
         </div>
 
-        {/* Messages */}
+        {/* Toast Messages - Fixed Position Right Side */}
         {error && (
-          <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-            {error}
+          <div className="fixed top-6 right-6 z-50 animate-slide-in-right">
+            <div className="bg-red-500 text-white px-6 py-4 rounded-lg shadow-2xl flex items-center space-x-3 max-w-md">
+              <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="font-medium">{error}</span>
+              <button 
+                onClick={() => setError('')}
+                className="ml-4 text-white hover:text-red-200 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
         )}
         
         {success && (
-          <div className="mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
-            {success}
+          <div className="fixed top-6 right-6 z-50 animate-slide-in-right">
+            <div className="bg-green-500 text-white px-6 py-4 rounded-lg shadow-2xl flex items-center space-x-3 max-w-md">
+              <svg className="w-6 h-6 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="font-medium">{success}</span>
+              <button 
+                onClick={() => setSuccess('')}
+                className="ml-4 text-white hover:text-green-200 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           </div>
         )}
 

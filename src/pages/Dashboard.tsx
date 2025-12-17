@@ -302,6 +302,7 @@ const Dashboard: React.FC = () => {
   // Fetch stats when productTypes are loaded
   useEffect(() => {
     if (productTypes.length > 0) {
+      console.log('🔄 Product types loaded, fetching stats...');
       fetchStats();
     }
   }, [productTypes]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -309,6 +310,7 @@ const Dashboard: React.FC = () => {
   const fetchProductTypesData = async (): Promise<void> => {
     try {
       const types = await fetchProductTypes();
+      console.log('📦 Fetched product types:', types);
       setProductTypes(types);
     } catch (error) {
       console.error("Error fetching product types:", error);
@@ -452,15 +454,19 @@ const Dashboard: React.FC = () => {
       const profit = totalSalesAmount - totalPurchasesAmount - totalExpenses;
 
       // Update stats with combined data
-      setStats({
+      const finalStats = {
         salesCount: totalSales,
         purchaseCount: totalPurchases,
         totalSalesAmount,
         totalPurchasesAmount,
         totalExpenses,
         profit,
-      });
+      };
 
+      console.log('✅ Final stats calculated:', finalStats);
+      console.log('✅ Product stats:', newProductStats);
+
+      setStats(finalStats);
       setProductStats(newProductStats);
     } catch (error) {
       console.error("Error fetching stats:", error);
@@ -953,53 +959,6 @@ const Dashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-white">
       <div className="max-w-7xl mx-auto p-6">
-        {/* Header with logo and user info */}
-        <div className="flex justify-between items-start mb-8">
-          <div className="flex items-center gap-4">
-            {/* Logo on left side */}
-            <div>
-              <img
-                src={Logo2}
-                alt="Al Hamad Oil Factory Logo"
-                className="h-12 sm:h-14 md:h-16 w-auto object-contain"
-                style={{
-                  backgroundColor: "transparent",
-                  background: "transparent",
-                  border: "none",
-                  outline: "none",
-                  display: "block",
-                }}
-              />
-            </div>
-            <div>
-              <p className="text-gray-600">
-                Welcome back, {user.firstName} {user.lastName} •{" "}
-                {user.role.displayName}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-4">
-            <div className="text-right">
-              <p className="text-sm font-medium text-gray-900">
-                {user.firstName} {user.lastName}
-              </p>
-              <p className="text-xs text-gray-500">
-                {user.department} • {user.position}
-              </p>
-            </div>
-            <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
-              {user.firstName.charAt(0)}
-              {user.lastName.charAt(0)}
-            </div>
-            <button
-              onClick={handleLogout}
-              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
-
         {/* Quick Actions */}
         <div className="flex justify-end space-x-4 mb-6">
           <button

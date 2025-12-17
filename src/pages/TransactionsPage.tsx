@@ -591,47 +591,48 @@ const TransactionsPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
+        {/* Back to Dashboard Button */}
+        <div className="mb-6">
+          <button 
+            onClick={() => window.history.back()}
+            className="inline-flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition-colors"
+          >
+            <ArrowLeftIcon />
+            <span className="text-sm font-medium text-gray-700">Back to Dashboard</span>
+          </button>
+        </div>
+
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-4">
-            <button 
-              onClick={() => window.history.back()}
-              className="flex items-center space-x-2 text-blue-600 hover:text-blue-800 transition-colors"
-            >
-              <ArrowLeftIcon />
-              <span>Back to Dashboard</span>
-            </button>
+        <div className="mb-6">
+          <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-800">
+              <h1 className="text-2xl font-bold text-gray-900">
                 {selectedProduct ? `${selectedProduct.name} Transactions` : 'Transaction Management'}
               </h1>
-              <p className="text-gray-600 mt-1">
+              <p className="text-sm text-gray-500 mt-1">
                 {selectedProduct 
                   ? `Manage all ${selectedProduct.name} sales and purchases`
                   : 'Select a product to view its transactions'
                 }
               </p>
             </div>
-          </div>
-          
-          {selectedProduct && (
-            <div className="flex items-center space-x-4">
-              <div className="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <PackageIcon />
+            
+            {selectedProduct && (
+              <div className="flex items-center space-x-3">
+                <div className="bg-blue-600 text-white px-4 py-2.5 rounded-md shadow-sm">
                   <span className="font-semibold">{selectedProduct.name}</span>
                 </div>
+                <button
+                  onClick={handleBackToProductSelection}
+                  className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2.5 rounded-md transition-colors shadow-sm"
+                >
+                  Change Product
+                </button>
               </div>
-              <button
-                onClick={handleBackToProductSelection}
-                className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                Change Product
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Success Message */}
@@ -678,17 +679,17 @@ const TransactionsPage: React.FC = () => {
         {selectedProduct && (
           <>
             {/* Filters and Search */}
-            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="bg-white rounded-md shadow-sm border border-gray-200 mb-5">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-0 divide-x divide-gray-200">
                 {/* Transaction Type Filter */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                <div className="p-4">
+                  <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">
                     Transaction Type
                   </label>
                   <select
                     value={filters.transactionType}
                     onChange={(e) => handleFilterChange('transactionType', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2.5 text-sm text-gray-700 bg-gray-50 border-0 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
                   >
                     <option value="">All Types</option>
                     <option value="sale">Sales</option>
@@ -697,8 +698,8 @@ const TransactionsPage: React.FC = () => {
                 </div>
 
                 {/* Client Name Search */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                <div className="p-4">
+                  <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">
                     Client/Supplier Name
                   </label>
                   <div className="relative">
@@ -707,23 +708,23 @@ const TransactionsPage: React.FC = () => {
                       value={filters.clientName}
                       onChange={(e) => handleFilterChange('clientName', e.target.value)}
                       placeholder="Search by name..."
-                      className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2.5 text-sm text-gray-700 bg-gray-50 border-0 rounded-md pl-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all placeholder:text-gray-400"
                     />
-                    <div className="absolute left-3 top-3 text-gray-400">
+                    <div className="absolute left-3 top-2.5 text-gray-400 pointer-events-none">
                       <SearchIcon />
                     </div>
                   </div>
                 </div>
 
                 {/* Payment Status Filter */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                <div className="p-4">
+                  <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">
                     Payment Status
                   </label>
                   <select
                     value={filters.paymentStatus}
                     onChange={(e) => handleFilterChange('paymentStatus', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2.5 text-sm text-gray-700 bg-gray-50 border-0 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
                   >
                     <option value="">All Status</option>
                     <option value="pending">Pending</option>
@@ -734,14 +735,14 @@ const TransactionsPage: React.FC = () => {
                 </div>
 
                 {/* Sort By */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                <div className="p-4">
+                  <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">
                     Sort By
                   </label>
                   <select
                     value={filters.sortBy}
                     onChange={(e) => handleFilterChange('sortBy', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2.5 text-sm text-gray-700 bg-gray-50 border-0 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
                   >
                     <option value="createdAt">Date</option>
                     <option value="clientName">Client Name</option>
@@ -751,14 +752,14 @@ const TransactionsPage: React.FC = () => {
                 </div>
 
                 {/* Sort Order */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                <div className="p-4">
+                  <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">
                     Order
                   </label>
                   <select
                     value={filters.sortOrder}
                     onChange={(e) => handleFilterChange('sortOrder', e.target.value as 'asc' | 'desc')}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2.5 text-sm text-gray-700 bg-gray-50 border-0 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
                   >
                     <option value="desc">Newest First</option>
                     <option value="asc">Oldest First</option>
@@ -768,24 +769,24 @@ const TransactionsPage: React.FC = () => {
             </div>
 
             {/* Transactions Table */}
-            <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-200">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-200 bg-white">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-gray-800">
+                  <h2 className="text-base font-semibold text-gray-900">
                     {selectedProduct.name} Transactions ({pagination.total} total)
                   </h2>
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-3">
                     {filters.clientName && (
                       <button
                         onClick={handleDownloadClientReport}
                         disabled={loading || transactions.length === 0}
-                        className="flex items-center space-x-2 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                       >
                         <DownloadIcon />
                         <span>Download Client Report PDF</span>
                       </button>
                     )}
-                    <div className="text-sm text-gray-500">
+                    <div className="text-xs text-gray-500">
                       All transactions are for {selectedProduct.name}
                     </div>
                   </div>

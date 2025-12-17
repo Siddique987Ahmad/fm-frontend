@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import React, { useState, useEffect } from "react";
+import jsPDF from "jspdf";
 
 // TypeScript interfaces
 interface CategorySpecific {
@@ -11,6 +12,8 @@ interface CategorySpecific {
   employeePosition?: string;
   salaryMonth?: string;
   advanceReason?: string;
+  advanceAmount?: string | number;
+  remainingAmount?: string | number;
   factoryType?: string;
   zakatType?: string;
   zakatYear?: number;
@@ -241,6 +244,8 @@ const ExpenseManagement: React.FC = () => {
   const [success, setSuccess] = useState<string>("");
   const [stats, setStats] = useState<Record<string, ExpenseStats>>({});
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [itemsPerPage] = useState<number>(15);
   const [authLoading, setAuthLoading] = useState<boolean>(true);
   const [employees, setEmployees] = useState<
     Array<{
@@ -360,8 +365,8 @@ const ExpenseManagement: React.FC = () => {
           type: "employee-select",
           required: true,
         },
-        { key: "salaryMonth", label: "Salary Month (YYYY-MM)", type: "month" },
         { key: "advanceReason", label: "Advance Reason", type: "text" },
+        { key: "advanceAmount", label: "Advance Amount", type: "number", required: true },
       ],
     },
     {
@@ -486,8 +491,9 @@ const ExpenseManagement: React.FC = () => {
     try {
       setLoading(true);
       const { authenticatedFetch } = await import("../utils/apiClient");
+      // Fetch all expenses by setting a high limit
       const result = await authenticatedFetch<ApiResponse<ExpenseListResponse>>(
-        `/expenses/category/${category}`
+        `/expenses/category/${category}?limit=1000&sortBy=createdAt&sortOrder=desc`
       );
 
       if (result.success && result.data) {
@@ -506,6 +512,7 @@ const ExpenseManagement: React.FC = () => {
     setShowForm(false);
     setError("");
     setSuccess("");
+    setCurrentPage(1);
     resetFormData();
   };
 
@@ -568,10 +575,37 @@ const ExpenseManagement: React.FC = () => {
   const handleDeleteExpense = async (expense: Expense): Promise<void> => {
     if (!expense || !expense._id) return;
 
-    const ok = window.confirm(
-      `Are you sure you want to delete the expense "${expense.title}"? This action cannot be undone.`
-    );
-    if (!ok) return;
+    // Create custom confirmation dialog
+    const confirmed = await new Promise<boolean>((resolve) => {
+      const dialog = document.createElement('div');
+      dialog.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+      dialog.innerHTML = `
+        <div class="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4 p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Confirm Delete</h3>
+          <p class="text-gray-600 mb-6">Are you sure you want to delete the expense "${expense.title}"? This action cannot be undone.</p>
+          <div class="flex space-x-3">
+            <button id="cancelBtn" class="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium rounded-lg transition-colors">Cancel</button>
+            <button id="confirmBtn" class="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors">Sure</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(dialog);
+
+      const confirmBtn = dialog.querySelector('#confirmBtn');
+      const cancelBtn = dialog.querySelector('#cancelBtn');
+
+      confirmBtn?.addEventListener('click', () => {
+        document.body.removeChild(dialog);
+        resolve(true);
+      });
+
+      cancelBtn?.addEventListener('click', () => {
+        document.body.removeChild(dialog);
+        resolve(false);
+      });
+    });
+
+    if (!confirmed) return;
 
     try {
       setError("");
@@ -621,6 +655,431 @@ const ExpenseManagement: React.FC = () => {
       notes: "",
       categorySpecific: {},
     });
+  };
+
+  const handleGenerateSingleLabourPDF = (expense: Expense): void => {
+    try {
+      const doc = new jsPDF();
+      
+      // Company Header
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, 210, 50, "F");
+      
+      // Add company logo
+      try {
+        // Load logo from assets
+        doc.addImage('/src/assets/Logo2.png', 'PNG', 14, 10, 35, 25);
+      } catch (e) {
+        // Fallback: draw a placeholder box if logo not found
+        doc.setDrawColor(241, 196, 15);
+        doc.setLineWidth(1);
+        doc.rect(14, 10, 35, 25);
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text("LOGO", 31.5, 23, { align: "center" });
+      }
+      
+      // Company Name
+      doc.setFontSize(22);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 0, 0);
+      doc.text("AL HAMAD OIL FACTORY", 55, 20);
+      
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(100, 100, 100);
+      doc.text("Employee Advance Payment Receipt", 55, 28);
+      
+      // Add line separator
+      doc.setLineWidth(1);
+      doc.setDrawColor(241, 196, 15); // Golden color
+      doc.line(14, 42, 196, 42);
+      
+      let yPosition = 55;
+      
+      // Employee Information Section
+      doc.setFillColor(250, 250, 250);
+      doc.rect(14, yPosition, 182, 32, "F");
+      doc.setDrawColor(220, 220, 220);
+      doc.setLineWidth(0.3);
+      doc.rect(14, yPosition, 182, 32);
+      
+      yPosition += 7;
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 0, 0);
+      doc.text("EMPLOYEE INFORMATION", 18, yPosition);
+      yPosition += 8;
+      
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      const employeeName = expense.categorySpecific?.employeeName || expense.title;
+      
+      // Two column layout for employee info
+      doc.setFont("helvetica", "bold");
+      doc.text("Name:", 18, yPosition);
+      doc.setFont("helvetica", "normal");
+      doc.text(employeeName, 50, yPosition);
+      
+      doc.setFont("helvetica", "bold");
+      doc.text("Date:", 120, yPosition);
+      doc.setFont("helvetica", "normal");
+      doc.text(new Date(expense.expenseDate).toLocaleDateString(), 145, yPosition);
+      yPosition += 6;
+      
+      if (expense.categorySpecific?.employeeDepartment) {
+        doc.setFont("helvetica", "bold");
+        doc.text("Department:", 18, yPosition);
+        doc.setFont("helvetica", "normal");
+        doc.text(expense.categorySpecific.employeeDepartment, 50, yPosition);
+      }
+      
+      if (expense.categorySpecific?.employeePosition) {
+        doc.setFont("helvetica", "bold");
+        doc.text("Position:", 120, yPosition);
+        doc.setFont("helvetica", "normal");
+        doc.text(expense.categorySpecific.employeePosition, 145, yPosition);
+      }
+      
+      yPosition += 10;
+      
+      // Payment Details Section
+      yPosition += 10; // Add 10px top padding before heading
+      doc.setFontSize(12);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 0, 0);
+      doc.text("PAYMENT DETAILS", 105, yPosition, { align: "center" });
+      yPosition += 15;
+      
+      // Create payment details box
+      doc.setFillColor(250, 250, 250);
+      doc.rect(14, yPosition, 182, 50, "F");
+      doc.setLineWidth(0.3);
+      doc.setDrawColor(200, 200, 200);
+      doc.rect(14, yPosition, 182, 50);
+      
+      yPosition += 10;
+      
+      const totalAmount = expense.amount;
+      const advanceAmount = expense.categorySpecific?.advanceAmount 
+        ? (typeof expense.categorySpecific.advanceAmount === 'number' 
+            ? expense.categorySpecific.advanceAmount 
+            : parseFloat(expense.categorySpecific.advanceAmount))
+        : 0;
+      const remainingAmount = expense.categorySpecific?.remainingAmount 
+        ? (typeof expense.categorySpecific.remainingAmount === 'number' 
+            ? expense.categorySpecific.remainingAmount 
+            : parseFloat(expense.categorySpecific.remainingAmount))
+        : totalAmount;
+      
+      // Total Salary Amount
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(0, 0, 0);
+      doc.text("Total Salary Amount:", 20, yPosition);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.text(formatCurrency(totalAmount), 176, yPosition, { align: "right" });
+      yPosition += 12;
+      
+      // Advance Amount Paid (Blue)
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(37, 99, 235); // Blue
+      doc.text("Advance Amount Paid:", 20, yPosition);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.text(formatCurrency(advanceAmount), 176, yPosition, { align: "right" });
+      yPosition += 12;
+      
+      // Remaining Amount (Green)
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(22, 163, 74); // Green
+      doc.text("Remaining Amount:", 20, yPosition);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.text(formatCurrency(remainingAmount), 176, yPosition, { align: "right" });
+      
+      doc.setTextColor(0, 0, 0);
+      yPosition += 20;
+      
+      // Advance Reason Section
+      if (expense.categorySpecific?.advanceReason) {
+        yPosition += 10; // Add 10px top padding
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(0, 0, 0);
+        doc.text("REASON FOR ADVANCE:", 14, yPosition);
+        yPosition += 6;
+        
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(220, 220, 220);
+        doc.setLineWidth(0.3);
+        doc.rect(14, yPosition, 182, 20, "FD");
+        
+        yPosition += 7;
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        const reason = expense.categorySpecific.advanceReason;
+        const splitReason = doc.splitTextToSize(reason, 170);
+        doc.text(splitReason, 18, yPosition);
+        yPosition += (splitReason.length * 5) + 15;
+      }
+      
+      // Important Note Box
+      doc.setFillColor(241, 196, 15); // Golden
+      doc.rect(14, yPosition, 182, 30, "F");
+      
+      yPosition += 8;
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 0, 0);
+      doc.text("IMPORTANT NOTE:", 20, yPosition);
+      yPosition += 7;
+      
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`The remaining amount of ${formatCurrency(remainingAmount)} will be deducted`, 20, yPosition);
+      yPosition += 5;
+      doc.text("from your upcoming salary payment.", 20, yPosition);
+      
+      // Signature Section
+      yPosition += 25;
+      doc.setTextColor(0, 0, 0);
+      doc.setLineWidth(0.5);
+      doc.line(14, yPosition, 80, yPosition);
+      doc.line(130, yPosition, 196, yPosition);
+      
+      yPosition += 5;
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text("Employee Signature", 14, yPosition);
+      doc.text("Authorized Signature", 130, yPosition);
+      
+      // Footer
+      yPosition = 275;
+      doc.setFillColor(50, 50, 50);
+      doc.rect(0, yPosition, 210, 22, "F");
+      
+      yPosition += 8;
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(255, 255, 255);
+      doc.text("AL HAMAD OIL FACTORY", 105, yPosition, { align: "center" });
+      
+      yPosition += 5;
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, 105, yPosition, { align: "center" });
+      
+      // Save the PDF with employee name
+      const cleanEmployeeName = employeeName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+      const fileName = `Advance_Receipt_${cleanEmployeeName}_${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(fileName);
+      
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      setError("Failed to generate PDF");
+    }
+  };
+
+  const handleGenerateLabourPDF = (): void => {
+    try {
+      const doc = new jsPDF();
+      
+      // Company Header
+      doc.setFillColor(255, 255, 255);
+      doc.rect(0, 0, 210, 40, "F");
+      
+      // Add company logo
+      try {
+        // Load logo from assets
+        doc.addImage('/src/assets/Logo2.png', 'PNG', 14, 8, 30, 20);
+      } catch (e) {
+        // Fallback: draw a placeholder box if logo not found
+        doc.setDrawColor(241, 196, 15);
+        doc.setLineWidth(1);
+        doc.rect(14, 8, 30, 20);
+        doc.setFontSize(7);
+        doc.setTextColor(150, 150, 150);
+        doc.text("LOGO", 29, 18.5, { align: "center" });
+      }
+      
+      // Company Name
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 0, 0);
+      doc.text("AL HAMAD OIL FACTORY", 50, 16);
+      
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("Labour Advance Payment Report", 50, 24);
+      
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Generated: ${new Date().toLocaleDateString()}`, 50, 30);
+      
+      // Add line separator
+      doc.setLineWidth(1);
+      doc.setDrawColor(241, 196, 15);
+      doc.line(14, 35, 196, 35);
+      
+      // Group expenses by employee
+      const employeeMap = new Map<string, Expense[]>();
+      
+      expenses.forEach(expense => {
+        const employeeName = expense.categorySpecific?.employeeName || expense.title;
+        if (!employeeMap.has(employeeName)) {
+          employeeMap.set(employeeName, []);
+        }
+        employeeMap.get(employeeName)?.push(expense);
+      });
+      
+      let yPosition = 45;
+      
+      // Process each employee
+      employeeMap.forEach((employeeExpenses, employeeName) => {
+        // Calculate totals for this employee
+        const totalAmount = employeeExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+        const totalAdvance = employeeExpenses.reduce((sum, exp) => {
+          const advance = exp.categorySpecific?.advanceAmount;
+          return sum + (advance ? (typeof advance === 'number' ? advance : parseFloat(advance)) : 0);
+        }, 0);
+        const totalRemaining = totalAmount - totalAdvance;
+        
+        // Check if we need a new page
+        if (yPosition > 240) {
+          doc.addPage();
+          yPosition = 20;
+        }
+        
+        // Employee name header with background
+        doc.setFillColor(59, 130, 246);
+        doc.rect(14, yPosition - 5, 182, 8, "F");
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(255, 255, 255);
+        doc.text(`Report: ${employeeName}`, 16, yPosition);
+        yPosition += 8;
+        
+        // Reset text color
+        doc.setTextColor(0, 0, 0);
+        
+        // Table header
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.setFillColor(240, 240, 240);
+        doc.rect(14, yPosition, 182, 7, "F");
+        
+        doc.text("Date", 16, yPosition + 5);
+        doc.text("Reason", 42, yPosition + 5);
+        doc.text("Total Amount", 90, yPosition + 5);
+        doc.text("Advance", 125, yPosition + 5);
+        doc.text("Remaining", 155, yPosition + 5);
+        yPosition += 7;
+        
+        // Table rows
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        
+        employeeExpenses.forEach((expense, index) => {
+          // Check if we need a new page
+          if (yPosition > 270) {
+            doc.addPage();
+            yPosition = 20;
+          }
+          
+          // Alternate row background
+          if (index % 2 === 0) {
+            doc.setFillColor(250, 250, 250);
+            doc.rect(14, yPosition, 182, 6, "F");
+          }
+          
+          const date = new Date(expense.expenseDate).toLocaleDateString();
+          const reason = expense.categorySpecific?.advanceReason || "-";
+          const total = formatCurrency(expense.amount);
+          const advance = expense.categorySpecific?.advanceAmount 
+            ? formatCurrency(typeof expense.categorySpecific.advanceAmount === 'number' 
+                ? expense.categorySpecific.advanceAmount 
+                : parseFloat(expense.categorySpecific.advanceAmount))
+            : "-";
+          const remaining = expense.categorySpecific?.remainingAmount 
+            ? formatCurrency(typeof expense.categorySpecific.remainingAmount === 'number' 
+                ? expense.categorySpecific.remainingAmount 
+                : parseFloat(expense.categorySpecific.remainingAmount))
+            : formatCurrency(expense.amount);
+          
+          doc.text(date, 16, yPosition + 4);
+          doc.text(reason.substring(0, 25), 42, yPosition + 4);
+          doc.text(total, 90, yPosition + 4);
+          doc.setTextColor(37, 99, 235);
+          doc.text(advance, 125, yPosition + 4);
+          doc.setTextColor(22, 163, 74);
+          doc.text(remaining, 155, yPosition + 4);
+          doc.setTextColor(0, 0, 0);
+          
+          yPosition += 6;
+        });
+        
+        yPosition += 3;
+        
+        // Summary box
+        doc.setFillColor(245, 245, 245);
+        doc.rect(14, yPosition, 182, 25, "F");
+        doc.setLineWidth(0.5);
+        doc.setDrawColor(200, 200, 200);
+        doc.rect(14, yPosition, 182, 25);
+        
+        yPosition += 6;
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.text("Employee Summary:", 16, yPosition);
+        
+        yPosition += 6;
+        doc.setFont("helvetica", "normal");
+        doc.text(`Total Amount: ${formatCurrency(totalAmount)}`, 20, yPosition);
+        
+        yPosition += 6;
+        doc.setTextColor(37, 99, 235);
+        doc.text(`Total Advance Paid: ${formatCurrency(totalAdvance)}`, 20, yPosition);
+        
+        yPosition += 6;
+        doc.setTextColor(22, 163, 74);
+        doc.text(`Total Remaining in Salary: ${formatCurrency(totalRemaining)}`, 20, yPosition);
+        
+        doc.setTextColor(0, 0, 0);
+        yPosition += 15;
+      });
+      
+      // Add footer on all pages
+      const pageCount = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        
+        // Footer background
+        doc.setFillColor(50, 50, 50);
+        doc.rect(0, 282, 210, 15, "F");
+        
+        // Footer text
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(255, 255, 255);
+        doc.text("AL HAMAD OIL FACTORY", 105, 289, { align: "center" });
+        
+        doc.setFontSize(7);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Page ${i} of ${pageCount}`, 105, 293, { align: "center" });
+      }
+      
+      // Save the PDF
+      doc.save(`Labour_Advances_${new Date().toISOString().split('T')[0]}.pdf`);
+      
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      setError("Failed to generate PDF");
+    }
   };
 
   const handleInputChange = (field: string, value: string): void => {
@@ -738,6 +1197,13 @@ const ExpenseManagement: React.FC = () => {
             employeeType: selectedEmployee.employeeType,
             employeeDepartment: selectedEmployee.department,
             employeePosition: selectedEmployee.position,
+            // Convert advance and remaining amounts to numbers
+            advanceAmount: formData.categorySpecific.advanceAmount 
+              ? parseFloat(formData.categorySpecific.advanceAmount) 
+              : undefined,
+            remainingAmount: formData.categorySpecific.remainingAmount 
+              ? parseFloat(formData.categorySpecific.remainingAmount) 
+              : undefined,
           };
         }
       }
@@ -869,63 +1335,20 @@ const ExpenseManagement: React.FC = () => {
   // Main expense categories view
   if (!selectedCategory) {
     return (
-      <div className="min-h-screen bg-gray-100 p-6">
+      <div className="min-h-screen bg-gray-50 p-6">
         <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={handleBackToDashboard}
-                className="flex items-center space-x-2 text-gray-600 hover:text-gray-800"
-              >
-                <ArrowLeftIcon />
-                <span>Back to Dashboard</span>
-              </button>
-              <h1 className="text-3xl font-bold text-gray-800">
-                Expense Management
-              </h1>
-            </div>
-          </div>
-
-          {/* Overview Statistics */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-sm font-medium text-gray-500">
-                Total Expenses
-              </h3>
-              <p className="text-2xl font-bold text-gray-900">
-                {Object.values(stats).reduce(
-                  (sum, stat) => sum + (stat.count || 0),
-                  0
-                )}
-              </p>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-sm font-medium text-gray-500">
-                Total Amount
-              </h3>
-              <p className="text-2xl font-bold text-red-600">
-                {formatCurrency(
-                  Object.values(stats).reduce(
-                    (sum, stat) => sum + (stat.totalAmount || 0),
-                    0
-                  )
-                )}
-              </p>
-            </div>
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-sm font-medium text-gray-500">
-                Pending Amount
-              </h3>
-              <p className="text-2xl font-bold text-yellow-600">
-                {formatCurrency(
-                  Object.values(stats).reduce(
-                    (sum, stat) => sum + (stat.pendingAmount || 0),
-                    0
-                  )
-                )}
-              </p>
-            </div>
+          {/* Back Button and Header */}
+          <div className="mb-6">
+            <button
+              onClick={handleBackToDashboard}
+              className="inline-flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition-colors mb-4"
+            >
+              <ArrowLeftIcon />
+              <span className="text-sm font-medium text-gray-700">Back to Dashboard</span>
+            </button>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Expense Management
+            </h1>
           </div>
 
           {/* Expense Categories */}
@@ -976,26 +1399,29 @@ const ExpenseManagement: React.FC = () => {
 
   // Category detail view or form
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={handleBackToCategories}
-              className="flex items-center space-x-2 text-gray-600 hover:text-gray-800"
-            >
-              <ArrowLeftIcon />
-              <span>
-                {showForm
-                  ? `Back to ${selectedCategory.name}`
-                  : "Back to Categories"}
-              </span>
-            </button>
-            <h1 className="text-3xl font-bold text-gray-800">
-              {selectedCategory.name}
-            </h1>
-          </div>
+        {/* Back Button and Header */}
+        <div className="mb-6">
+          <button
+            onClick={handleBackToCategories}
+            className="inline-flex items-center space-x-2 px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition-colors mb-4"
+          >
+            <ArrowLeftIcon />
+            <span className="text-sm font-medium text-gray-700">
+              {showForm
+                ? `Back to ${selectedCategory.name}`
+                : "Back to Categories"}
+            </span>
+          </button>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {selectedCategory.name}
+          </h1>
+        </div>
+        
+        {/* Action Button */}
+        <div className="flex items-center justify-between mb-6">
+          <div></div>
 
           {!showForm && (
             <button
@@ -1067,9 +1493,19 @@ const ExpenseManagement: React.FC = () => {
                     type="number"
                     step="0.01"
                     value={formData.amount}
-                    onChange={(e) =>
-                      handleInputChange("amount", e.target.value)
-                    }
+                    onChange={(e) => {
+                      handleInputChange("amount", e.target.value);
+                      // Auto-calculate remaining amount for advance payments
+                      if (selectedCategory.id === "labour" && formData.categorySpecific.advanceAmount) {
+                        const totalAmount = parseFloat(e.target.value) || 0;
+                        const advanceAmount = parseFloat(formData.categorySpecific.advanceAmount) || 0;
+                        const remaining = totalAmount - advanceAmount;
+                        handleInputChange(
+                          "categorySpecific.remainingAmount",
+                          remaining >= 0 ? remaining.toString() : "0"
+                        );
+                      }
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder={
                       selectedCategory.id === "zakat"
@@ -1178,17 +1614,29 @@ const ExpenseManagement: React.FC = () => {
                     ) : (
                       <input
                         type={field.type}
-                        value={
+                        value={(
+                          field.key === "advanceAmount" && formData.categorySpecific[field.key as keyof CategorySpecific]
+                        ) || (
                           formData.categorySpecific[
                             field.key as keyof CategorySpecific
                           ] || ""
-                        }
-                        onChange={(e) =>
+                        )}
+                        onChange={(e) => {
                           handleInputChange(
                             `categorySpecific.${field.key}`,
                             e.target.value
-                          )
-                        }
+                          );
+                          // Auto-calculate remaining amount for advance payments
+                          if (field.key === "advanceAmount" && selectedCategory.id === "labour") {
+                            const totalAmount = parseFloat(formData.amount) || 0;
+                            const advanceAmount = parseFloat(e.target.value) || 0;
+                            const remaining = totalAmount - advanceAmount;
+                            handleInputChange(
+                              "categorySpecific.remainingAmount",
+                              remaining >= 0 ? remaining.toString() : "0"
+                            );
+                          }
+                        }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder={`Enter ${field.label.toLowerCase()}`}
                         min={field.min}
@@ -1199,6 +1647,22 @@ const ExpenseManagement: React.FC = () => {
                     )}
                   </div>
                 ))}
+
+                {/* Remaining Amount - Auto-calculated for Advance Payments */}
+                {selectedCategory.id === "labour" && formData.categorySpecific.advanceAmount && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Remaining Amount
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.categorySpecific.remainingAmount || "0"}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled
+                      readOnly
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Description - Optional for Home, Factory, Personal; Required for Labour; Hidden for Zakat */}
@@ -1332,9 +1796,23 @@ const ExpenseManagement: React.FC = () => {
           // Expense List
           <div className="bg-white rounded-lg shadow-lg">
             <div className="p-6 border-b">
-              <h2 className="text-xl font-semibold">
-                Recent {selectedCategory.name}
-              </h2>
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-semibold">
+                  Recent {selectedCategory.name}
+                </h2>
+                {selectedCategory.id === "labour" && expenses.length > 0 && (
+                  <button
+                    onClick={handleGenerateLabourPDF}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+                    disabled={loading}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <span>Generate PDF</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             {loading ? (
@@ -1363,13 +1841,23 @@ const ExpenseManagement: React.FC = () => {
                           : "Title"}
                       </th>
                       {selectedCategory.id === "labour" && (
+                        <>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Total Amount
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Advance Amount
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Remaining Amount
+                          </th>
+                        </>
+                      )}
+                      {selectedCategory.id !== "labour" && (
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Salary Month
+                          Amount
                         </th>
                       )}
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Amount
-                      </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
                       </th>
@@ -1385,7 +1873,7 @@ const ExpenseManagement: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {expenses.map((expense) => (
+                    {expenses.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((expense) => (
                       <tr key={expense._id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
@@ -1403,13 +1891,31 @@ const ExpenseManagement: React.FC = () => {
                           </div>
                         </td>
                         {selectedCategory.id === "labour" && (
+                          <>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                              {formatCurrency(expense.amount)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">
+                              {expense.categorySpecific?.advanceAmount 
+                                ? formatCurrency(typeof expense.categorySpecific.advanceAmount === 'number' 
+                                    ? expense.categorySpecific.advanceAmount 
+                                    : parseFloat(expense.categorySpecific.advanceAmount))
+                                : "-"}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
+                              {expense.categorySpecific?.remainingAmount 
+                                ? formatCurrency(typeof expense.categorySpecific.remainingAmount === 'number' 
+                                    ? expense.categorySpecific.remainingAmount 
+                                    : parseFloat(expense.categorySpecific.remainingAmount))
+                                : formatCurrency(expense.amount)}
+                            </td>
+                          </>
+                        )}
+                        {selectedCategory.id !== "labour" && (
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {expense.categorySpecific?.salaryMonth || "-"}
+                            {formatCurrency(expense.amount)}
                           </td>
                         )}
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {formatCurrency(expense.amount)}
-                        </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span
                             className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPaymentStatusColor(
@@ -1443,6 +1949,17 @@ const ExpenseManagement: React.FC = () => {
                             >
                               <EditIcon />
                             </button>
+                            {selectedCategory.id === "labour" && (
+                              <button
+                                onClick={() => handleGenerateSingleLabourPDF(expense)}
+                                className="text-purple-600 hover:text-purple-900 p-1 rounded transition-colors"
+                                title="Generate PDF Receipt"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                              </button>
+                            )}
                             <button
                               onClick={() => handleDeleteExpense(expense)}
                               className="text-red-600 hover:text-red-900 p-1 rounded transition-colors flex items-center"
@@ -1473,6 +1990,119 @@ const ExpenseManagement: React.FC = () => {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {/* Pagination */}
+            {!loading && expenses.length > 0 && (
+              <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="text-sm text-gray-700">
+                    Showing <span className="font-semibold">{Math.min((currentPage - 1) * itemsPerPage + 1, expenses.length)}</span> to <span className="font-semibold">{Math.min(currentPage * itemsPerPage, expenses.length)}</span> of <span className="font-semibold">{expenses.length}</span> expenses
+                  </div>
+                  {Math.ceil(expenses.length / itemsPerPage) > 1 && (
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Previous
+                      </button>
+                      <div className="flex space-x-1">
+                        {Array.from({ length: Math.ceil(expenses.length / itemsPerPage) }, (_, i) => i + 1).map(page => (
+                          <button
+                            key={page}
+                            onClick={() => setCurrentPage(page)}
+                            className={`px-4 py-2 border rounded-md text-sm font-medium transition-colors ${
+                              currentPage === page
+                                ? 'bg-blue-600 text-white border-blue-600'
+                                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(expenses.length / itemsPerPage)))}
+                        disabled={currentPage === Math.ceil(expenses.length / itemsPerPage)}
+                        className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Total Summary - At Bottom */}
+            {!loading && expenses.length > 0 && (
+              <div className="p-6 bg-white border-t border-gray-200">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-gray-500 font-medium uppercase">Total Records</p>
+                        <p className="text-2xl font-bold text-gray-900">{expenses.length}</p>
+                      </div>
+                      <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                        <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-gray-500 font-medium uppercase">Total Amount</p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {formatCurrency(expenses.reduce((sum, exp) => sum + exp.amount, 0))}
+                        </p>
+                      </div>
+                      <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                        <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-gray-500 font-medium uppercase">Paid Amount</p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {formatCurrency(expenses.reduce((sum, exp) => sum + exp.amountPaid, 0))}
+                        </p>
+                      </div>
+                      <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                        <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-gray-500 font-medium uppercase">Pending Amount</p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {formatCurrency(expenses.reduce((sum, exp) => sum + exp.outstandingAmount, 0))}
+                        </p>
+                      </div>
+                      <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                        <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>

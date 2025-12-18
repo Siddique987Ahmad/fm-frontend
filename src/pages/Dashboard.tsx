@@ -25,6 +25,11 @@ interface NugEntry {
   tareWeightPerContainer: string;
   grossWeight: string;
   netWeight: number;
+  cuttingBag: string;
+  cuttingWeightMultiplier: string;
+  cuttingWeight: number;
+  userWeight: string;
+  totalWeight: number;
 }
 
 interface DashboardStats {
@@ -622,18 +627,19 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // Calculate total net weight from Nug entries
+  // Calculate total weight from Nug entries
   useEffect(() => {
-    if (useNugCalculation) {
+    if (useNugCalculation && nugEntries.length > 0) {
       const totalNet = nugEntries.reduce(
-        (sum, entry) => sum + (entry.netWeight || 0),
+        (sum, entry) => sum + (entry.totalWeight || 0),
         0
       );
       // Only update if the value is different to avoid infinite loops
-      if (parseFloat(formData.weight) !== totalNet) {
+      const currentWeight = parseFloat(formData.weight) || 0;
+      if (Math.abs(currentWeight - totalNet) > 0.01) {
         setFormData((prev) => ({
           ...prev,
-          weight: totalNet > 0 ? totalNet.toString() : "",
+          weight: totalNet > 0 ? totalNet.toFixed(2) : "0",
         }));
       }
     }
@@ -644,20 +650,19 @@ const Dashboard: React.FC = () => {
       ...nugEntries,
       {
         containers: "",
-        tareWeightPerContainer: "",
+        tareWeightPerContainer: "0.250",
         grossWeight: "",
         netWeight: 0,
+        cuttingBag: "5",
+        cuttingWeightMultiplier: "0.250",
+        cuttingWeight: 1.25,
+        userWeight: "",
+        totalWeight: 0,
       },
     ]);
   };
 
-  interface NugEntry {
-    containers: string; // This will now represent "Nugs" count
-    bagsPerNug?: string; // New field for Bags per Nug (default 306)
-    tareWeightPerContainer: string; // This represents Tare per Bag (default 0.250)
-    grossWeight: string; // Calculated: Nugs * Bags/Nug
-    netWeight: number; // Calculated: Gross - (Gross * Tare/Bag)
-  }
+
 
   const removeNugEntry = (index: number) => {
     const newEntries = [...nugEntries];
@@ -679,24 +684,26 @@ const Dashboard: React.FC = () => {
     // Auto-calculate logic
     const entry = newEntries[index];
     const nugs = parseFloat(entry.containers) || 0;
-    const bagsPerNug = parseFloat(entry.bagsPerNug || "306"); // Default 306
-    const tarePerBag = parseFloat(entry.tareWeightPerContainer || "0.250"); // Default 0.250
+    const tarePerBag = parseFloat(entry.tareWeightPerContainer || "0.250");
 
-    if (nugs > 0) {
-      const totalBags = nugs * bagsPerNug; // Answer 1
-      const totalTare = totalBags * tarePerBag; // Answer 2
-      const netWeight = totalBags - totalTare; // Final Answer
-
-      // We store "Total Bags" in grossWeight field for backend compatibility
-      // containers = Nugs
-      // tareWeightPerContainer = Tare/Bag
-      // grossWeight = Total Bags
-
-      entry.grossWeight = totalBags.toString();
-      entry.netWeight = netWeight > 0 ? netWeight : 0;
+    // Calculate net weight from nugs
+    if (nugs > 0 && tarePerBag > 0) {
+      const totalBags = nugs * tarePerBag;
+      entry.grossWeight = totalBags.toFixed(3);
+      entry.netWeight = totalBags;
     } else {
+      entry.grossWeight = "";
       entry.netWeight = 0;
     }
+
+    // Calculate cutting weight: cuttingBag * cuttingWeightMultiplier
+    const cuttingBag = parseFloat(entry.cuttingBag) || 0;
+    const cuttingWeightMultiplier = parseFloat(entry.cuttingWeightMultiplier || "0.250");
+    entry.cuttingWeight = cuttingBag * cuttingWeightMultiplier;
+
+    // Calculate total weight: userWeight - cuttingWeight
+    const userWeight = parseFloat(entry.userWeight) || 0;
+    entry.totalWeight = userWeight - entry.cuttingWeight;
 
     setNugEntries(newEntries);
   };
@@ -767,9 +774,23 @@ const Dashboard: React.FC = () => {
       return false;
     }
 
-    if (!weight || parseFloat(weight) <= 0) {
-      setError("Weight must be greater than 0");
-      return false;
+    // For Nug calculation, weight is auto-calculated from entries
+    if (!useNugCalculation) {
+      if (!weight || parseFloat(weight) <= 0) {
+        setError("Weight must be greater than 0");
+        return false;
+      }
+    } else {
+      // When using Nug calculation, check if we have valid entries
+      if (!nugEntries.length || nugEntries.every(entry => !entry.totalWeight || entry.totalWeight <= 0)) {
+        setError("Please add at least one entry with valid weight calculation");
+        return false;
+      }
+      // Ensure calculated weight is available
+      if (!weight || parseFloat(weight) <= 0) {
+        setError("Total calculated weight must be greater than 0");
+        return false;
+      }
     }
 
     if (!rate || parseFloat(rate) <= 0) {
@@ -1134,7 +1155,7 @@ const Dashboard: React.FC = () => {
         {/* Popup Modal */}
         {isPopupOpen && selectedProduct && !selectedProduct.isExpense && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded-lg shadow-2xl w-full max-w-[41rem] max-h-[90vh] overflow-y-auto">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b">
                 <h2 className="text-2xl font-bold text-gray-800">
@@ -1314,63 +1335,71 @@ const Dashboard: React.FC = () => {
                               >
                                 <div className="flex-1">
                                   <label className="block text-xs text-gray-500 mb-1">
-                                    Nugs
+                                    Cutting Bag
                                   </label>
                                   <input
                                     type="number"
-                                    value={entry.containers} // Using containers field for Nugs
+                                    value={entry.cuttingBag}
                                     onChange={(e) =>
                                       updateNugEntry(
                                         index,
-                                        "containers",
+                                        "cuttingBag",
                                         e.target.value
                                       )
                                     }
                                     className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
-                                    placeholder="Qty"
+                                    placeholder="5"
                                   />
                                 </div>
                                 <div className="flex-1">
                                   <label className="block text-xs text-gray-500 mb-1">
-                                    Total Bags
-                                  </label>
-                                  <input
-                                    type="number"
-                                    value={entry.grossWeight} // grossWeight stores Total Bags (Answer1)
-                                    readOnly
-                                    className="w-full px-2 py-1 text-sm bg-gray-100 border border-gray-300 rounded"
-                                  />
-                                </div>
-                                {/* <div className="flex-1">
-                                  <label className="block text-xs text-gray-500 mb-1">
-                                    Tare/Bag (kg)
+                                    Cutting Weight (kg)
                                   </label>
                                   <input
                                     type="number"
                                     step="0.001"
-                                    value={entry.tareWeightPerContainer}
+                                    value={entry.cuttingWeightMultiplier}
                                     onChange={(e) =>
                                       updateNugEntry(
                                         index,
-                                        "tareWeightPerContainer",
+                                        "cuttingWeightMultiplier",
                                         e.target.value
                                       )
                                     }
                                     className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
                                     placeholder="0.250"
                                   />
-                                </div> */}
+                                </div>
                                 <div className="flex-1">
                                   <label className="block text-xs text-gray-500 mb-1">
-                                    Net (kg)
+                                    User Weight (kg)
                                   </label>
                                   <input
                                     type="number"
-                                    value={entry.netWeight?.toFixed(2) || ""}
-                                    readOnly
-                                    className="w-full px-2 py-1 text-sm bg-gray-100 border border-gray-300 rounded text-right font-medium"
+                                    step="0.01"
+                                    value={entry.userWeight}
+                                    onChange={(e) =>
+                                      updateNugEntry(
+                                        index,
+                                        "userWeight",
+                                        e.target.value
+                                      )
+                                    }
+                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                                    placeholder="200"
                                   />
-                                </div>{" "}
+                                </div>
+                                <div className="flex-1">
+                                  <label className="block text-xs text-gray-500 mb-1">
+                                    Total Weight (kg)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    value={entry.totalWeight?.toFixed(2) || ""}
+                                    readOnly
+                                    className="w-full px-2 py-1 text-sm bg-green-50 border border-green-300 rounded text-right font-bold text-green-700"
+                                  />
+                                </div>
                                 <button
                                   type="button"
                                   onClick={() => removeNugEntry(index)}
@@ -1382,21 +1411,13 @@ const Dashboard: React.FC = () => {
                               </div>
                             ))}
 
-                            <div className="flex justify-between items-center mt-2">
-                              <button
-                                type="button"
-                                onClick={addNugEntry}
-                                className="text-sm text-indigo-600 hover:text-indigo-800 font-medium flex items-center"
-                              >
-                                + Add Nug Entry
-                              </button>
-                              <div className="text-sm font-medium text-gray-700">
-                                Total Net Weight:{" "}
-                                <span className="text-indigo-600 text-lg">
-                                  {formData.weight || "0"} kg
-                                </span>
-                              </div>
-                            </div>
+                            <button
+                              type="button"
+                              onClick={addNugEntry}
+                              className="mt-2 text-sm text-indigo-600 hover:text-indigo-800 font-medium flex items-center"
+                            >
+                              + Add Entry
+                            </button>
                           </div>
                         )}
                       </div>

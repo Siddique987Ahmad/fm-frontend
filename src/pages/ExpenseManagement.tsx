@@ -256,9 +256,25 @@ const ExpenseManagement: React.FC = () => {
       department: string;
       position: string;
       employeeType: string;
+      salary?: number;
     }>
   >([]);
   const [deleteLoadingId, setDeleteLoadingId] = useState<string | null>(null);
+  const [employeeAdvances, setEmployeeAdvances] = useState<{
+    advances: Array<{
+      date: string;
+      advanceAmount: number;
+      totalAmount: number;
+      remainingAmount: number;
+      description?: string;
+    }>;
+    summary: {
+      totalAdvancesTaken: number;
+      totalSalaryPaid: number;
+      remainingSalary: number;
+      monthSalary: number;
+    };
+  } | null>(null);
 
   // New state for view/edit operations (removed delete functionality)
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
@@ -550,7 +566,7 @@ const ExpenseManagement: React.FC = () => {
     console.log("View expense called:", { expense, actionMode: "view" }); // Debug log
   };
 
-  const handleEditExpense = (expense: Expense): void => {
+  const handleEditExpense = async (expense: Expense): Promise<void> => {
     setSelectedExpense(expense);
     setActionMode("edit");
     setShowForm(true);
@@ -570,6 +586,22 @@ const ExpenseManagement: React.FC = () => {
       notes: expense.notes || "",
       categorySpecific: expense.categorySpecific || {},
     });
+
+    // Fetch advance history if this is a labour expense with an employee
+    if (expense.expenseCategory === 'labour' && expense.categorySpecific?.employeeId) {
+      try {
+        const { authenticatedFetch } = await import("../utils/apiClient");
+        const result = await authenticatedFetch(`/admin/employees/${expense.categorySpecific.employeeId}/advances`, {
+          method: "GET"
+        });
+        
+        if (result.success && result.data) {
+          setEmployeeAdvances(result.data);
+        }
+      } catch (error) {
+        console.error("Error fetching employee advances:", error);
+      }
+    }
   };
 
   const handleDeleteExpense = async (expense: Expense): Promise<void> => {
@@ -1487,6 +1519,8 @@ const ExpenseManagement: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     {selectedCategory.id === "zakat"
                       ? "Zakat Amount *"
+                      : selectedCategory.id === "labour"
+                      ? "Total Salary *"
                       : "Total Amount *"}
                   </label>
                   <input
@@ -1506,14 +1540,18 @@ const ExpenseManagement: React.FC = () => {
                         );
                       }
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      selectedCategory.id === "labour" ? "bg-gray-100 cursor-not-allowed" : ""
+                    }`}
                     placeholder={
                       selectedCategory.id === "zakat"
                         ? "Enter zakat amount"
+                        : selectedCategory.id === "labour"
+                        ? "Select employee to auto-fill salary"
                         : "Enter total amount"
                     }
                     disabled={loading || actionMode === "view"}
-                    readOnly={actionMode === "view"}
+                    readOnly={selectedCategory.id === "labour" || actionMode === "view"}
                   />
                 </div>
 
@@ -1563,29 +1601,104 @@ const ExpenseManagement: React.FC = () => {
                       {field.label} {field.required && "*"}
                     </label>
                     {field.type === "employee-select" ? (
-                      <select
-                        value={
-                          formData.categorySpecific[
-                            field.key as keyof CategorySpecific
-                          ] || ""
-                        }
-                        onChange={(e) =>
-                          handleInputChange(
-                            `categorySpecific.${field.key}`,
-                            e.target.value
-                          )
-                        }
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        disabled={loading || actionMode === "view"}
-                      >
-                        <option value="">Select Employee</option>
-                        {employees.map((employee) => (
-                          <option key={employee._id} value={employee._id}>
-                            {employee.firstName} {employee.lastName} (
-                            {employee.employeeId}) - {employee.department}
-                          </option>
-                        ))}
-                      </select>
+                      <>
+                        <select
+                          value={
+                            formData.categorySpecific[
+                              field.key as keyof CategorySpecific
+                            ] || ""
+                          }
+                          onChange={async (e) => {
+                            handleInputChange(
+                              `categorySpecific.${field.key}`,
+                              e.target.value
+                            );
+                            // Auto-populate salary and fetch advance history when employee is selected
+                            if (e.target.value) {
+                              const selectedEmp = employees.find(emp => emp._id === e.target.value);
+                              if (selectedEmp && selectedEmp.salary) {
+                                handleInputChange("amount", selectedEmp.salary.toString());
+                              }
+                              
+                              // Fetch employee advance history
+                              try {
+                                const { authenticatedFetch } = await import("../utils/apiClient");
+                                const result = await authenticatedFetch(`/admin/employees/${e.target.value}/advances`, {
+                                  method: "GET"
+                                });
+                                
+                                if (result.success && result.data) {
+                                  setEmployeeAdvances(result.data);
+                                }
+                              } catch (error) {
+                                console.error("Error fetching employee advances:", error);
+                              }
+                            } else {
+                              setEmployeeAdvances(null);
+                            }
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          disabled={loading || actionMode === "view"}
+                        >
+                          <option value="">Select Employee</option>
+                          {employees.map((employee) => (
+                            <option key={employee._id} value={employee._id}>
+                              {employee.firstName} {employee.lastName} (
+                              {employee.employeeId}) - {employee.department}
+                              {employee.salary ? ` - Salary: PKR${employee.salary.toLocaleString()}` : ''}
+                            </option>
+                          ))}
+                        </select>
+                        
+                        {/* Show advance history when employee is selected */}
+                        {employeeAdvances && formData.categorySpecific.employeeId && (
+                          <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="flex justify-between items-center mb-2">
+                              <h4 className="font-semibold text-sm text-blue-900">Advance History (This Month)</h4>
+                              <span className="text-xs text-blue-700">
+                                Remaining: PKR{employeeAdvances.summary.remainingSalary.toLocaleString()}
+                              </span>
+                            </div>
+                            
+                            {employeeAdvances.advances.length > 0 ? (
+                              <div className="space-y-2 max-h-32 overflow-y-auto">
+                                {employeeAdvances.advances.map((adv, idx) => (
+                                  <div key={idx} className="text-xs bg-white p-2 rounded border border-blue-100">
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">
+                                        {new Date(adv.date).toLocaleDateString()}
+                                      </span>
+                                      <span className="font-semibold text-blue-600">
+                                        Advance: PKR{adv.advanceAmount.toLocaleString()}
+                                      </span>
+                                    </div>
+                                    {adv.description && (
+                                      <div className="text-gray-500 mt-1">{adv.description}</div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-gray-600">No advances taken this month</p>
+                            )}
+                            
+                            <div className="mt-2 pt-2 border-t border-blue-200 grid grid-cols-2 gap-2 text-xs">
+                              <div>
+                                <span className="text-gray-600">Total Advances:</span>
+                                <span className="ml-1 font-semibold text-red-600">
+                                  PKR{employeeAdvances.summary.totalAdvancesTaken.toLocaleString()}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-gray-600">Month Salary:</span>
+                                <span className="ml-1 font-semibold text-green-600">
+                                  PKR{employeeAdvances.summary.monthSalary.toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </>
                     ) : field.type === "select" ? (
                       <select
                         value={
@@ -1903,7 +2016,7 @@ const ExpenseManagement: React.FC = () => {
                                 : "-"}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
-                              {expense.categorySpecific?.remainingAmount 
+                              {expense.categorySpecific?.remainingAmount !== undefined
                                 ? formatCurrency(typeof expense.categorySpecific.remainingAmount === 'number' 
                                     ? expense.categorySpecific.remainingAmount 
                                     : parseFloat(expense.categorySpecific.remainingAmount))
@@ -2074,9 +2187,21 @@ const ExpenseManagement: React.FC = () => {
                   <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs text-gray-500 font-medium uppercase">Paid Amount</p>
+                        <p className="text-xs text-gray-500 font-medium uppercase">
+                          {selectedCategory.id === "labour" ? "Advance Amount" : "Paid Amount"}
+                        </p>
                         <p className="text-2xl font-bold text-gray-900">
-                          {formatCurrency(expenses.reduce((sum, exp) => sum + exp.amountPaid, 0))}
+                          {selectedCategory.id === "labour" 
+                            ? formatCurrency(expenses.reduce((sum, exp) => {
+                                const advanceAmount = exp.categorySpecific?.advanceAmount 
+                                  ? (typeof exp.categorySpecific.advanceAmount === 'number' 
+                                      ? exp.categorySpecific.advanceAmount 
+                                      : parseFloat(exp.categorySpecific.advanceAmount))
+                                  : 0;
+                                return sum + advanceAmount;
+                              }, 0))
+                            : formatCurrency(expenses.reduce((sum, exp) => sum + exp.amountPaid, 0))
+                          }
                         </p>
                       </div>
                       <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
@@ -2090,9 +2215,21 @@ const ExpenseManagement: React.FC = () => {
                   <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs text-gray-500 font-medium uppercase">Pending Amount</p>
+                        <p className="text-xs text-gray-500 font-medium uppercase">
+                          {selectedCategory.id === "labour" ? "Remaining Amount" : "Pending Amount"}
+                        </p>
                         <p className="text-2xl font-bold text-gray-900">
-                          {formatCurrency(expenses.reduce((sum, exp) => sum + exp.outstandingAmount, 0))}
+                          {selectedCategory.id === "labour"
+                            ? formatCurrency(expenses.reduce((sum, exp) => {
+                                const remainingAmount = exp.categorySpecific?.remainingAmount !== undefined
+                                  ? (typeof exp.categorySpecific.remainingAmount === 'number' 
+                                      ? exp.categorySpecific.remainingAmount 
+                                      : parseFloat(exp.categorySpecific.remainingAmount))
+                                  : exp.amount;
+                                return sum + remainingAmount;
+                              }, 0))
+                            : formatCurrency(expenses.reduce((sum, exp) => sum + exp.outstandingAmount, 0))
+                          }
                         </p>
                       </div>
                       <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">

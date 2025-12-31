@@ -18,6 +18,7 @@ interface FormData {
   rate: string;
   remainingAmount: string;
   totalBalance: string;
+  transactionDate?: string;
 }
 
 interface NugEntry {
@@ -161,6 +162,7 @@ const Dashboard: React.FC = () => {
     rate: "",
     remainingAmount: "",
     totalBalance: "",
+    transactionDate: new Date().toISOString().slice(0,10),
   });
   const [useNugCalculation, setUseNugCalculation] = useState<boolean>(false);
   const [nugEntries, setNugEntries] = useState<NugEntry[]>([]);
@@ -837,6 +839,7 @@ const Dashboard: React.FC = () => {
         rateUnit: "per_kg",
         remainingAmount: parseFloat(formData.remainingAmount),
         totalBalance: parseFloat(formData.totalBalance),
+        transactionDate: formData.transactionDate, // optional custom date selected by user (YYYY-MM-DD)
         useNugCalculation,
         nugEntries: useNugCalculation ? nugEntries : [],
       };
@@ -1307,6 +1310,18 @@ const Dashboard: React.FC = () => {
                             })}
                         </div>
                       )}
+                    
+                    {/* Transaction Date */}
+                    <div className="mt-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Transaction Date *</label>
+                      <input
+                        type="date"
+                        value={formData.transactionDate}
+                        onChange={(e) => handleInputChange("transactionDate", e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        disabled={loading}
+                      />
+                    </div>
                     </div>
 
                     {/* Nug Calculation Section */}
@@ -1371,7 +1386,7 @@ const Dashboard: React.FC = () => {
                                   />
                                 </div>
                                 <div className="flex-1">
-                                  <label className="block text-xs text-gray-500 mb-1">
+                  b                  <label className="block text-xs text-gray-500 mb-1">
                                     User Weight (kg)
                                   </label>
                                   <input
